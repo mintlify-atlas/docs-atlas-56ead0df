@@ -1,0 +1,164 @@
+{
+  "projectType": "saas",
+  "projectName": "Servineo",
+  "projectDescription": "A service marketplace platform connecting service requesters with professional fixers for home and business services.",
+  "theme": "almond",
+  "primaryColor": "#3B82F6",
+  "lightColor": "#60A5FA",
+  "darkColor": "#1E40AF",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/users-and-roles",
+              "concepts/job-marketplace",
+              "concepts/appointments",
+              "concepts/payments"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "For Requesters",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "requesters/overview",
+              "requesters/finding-fixers",
+              "requesters/creating-job-requests"
+            ]
+          },
+          {
+            "group": "Managing Jobs",
+            "pages": [
+              "requesters/job-offers",
+              "requesters/scheduling-appointments",
+              "requesters/tracking-jobs",
+              "requesters/rating-fixers"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "For Fixers",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "fixers/overview",
+              "fixers/becoming-a-fixer",
+              "fixers/profile-setup"
+            ]
+          },
+          {
+            "group": "Managing Work",
+            "pages": [
+              "fixers/dashboard",
+              "fixers/accepting-jobs",
+              "fixers/calendar-management",
+              "fixers/building-reputation"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Features",
+        "groups": [
+          {
+            "group": "Platform Features",
+            "pages": [
+              "features/search-and-filters",
+              "features/advanced-search",
+              "features/map-integration",
+              "features/internationalization"
+            ]
+          },
+          {
+            "group": "User Features",
+            "pages": [
+              "features/authentication",
+              "features/user-profiles",
+              "features/payment-methods",
+              "features/notifications"
+            ]
+          },
+          {
+            "group": "Admin Features",
+            "pages": [
+              "features/admin-dashboard",
+              "features/statistics",
+              "features/user-management"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/overview",
+              "api/authentication"
+            ]
+          },
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api/user",
+              "api/fixer",
+              "api/jobs",
+              "api/appointments",
+              "api/search"
+            ]
+          },
+          {
+            "group": "Redux State",
+            "pages": [
+              "api/redux-store",
+              "api/slices"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Dual-role system for requesters and service providers (fixers)",
+    "Job marketplace with posting, browsing, and matching",
+    "Integrated appointment scheduling and calendar management",
+    "Advanced search with filters for location, rating, and services",
+    "Payment processing with multiple methods including Stripe",
+    "Rating and review system for quality assurance",
+    "Multi-language support (English/Spanish)",
+    "Admin dashboard with statistics and user management",
+    "Real-time notifications and activity tracking",
+    "Map-based fixer discovery"
+  ],
+  "publicApiSurface": [
+    "User Authentication (Login, SignUp, OAuth)",
+    "User Profile Management",
+    "Fixer Registration and Profile",
+    "Job Posting and Management",
+    "Job Offers and Requests",
+    "Appointment Scheduling",
+    "Search and Filtering",
+    "Payment Processing",
+    "Ratings and Reviews",
+    "Admin Statistics",
+    "Activity Tracking"
+  ]
+}
