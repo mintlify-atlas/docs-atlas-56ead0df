@@ -1,0 +1,690 @@
+---
+title: 'Payment Methods'
+description: 'Stripe-powered payment system with credit cards, QR payments, and cash options'
+---
+
+## Overview
+
+Servineo implements a flexible payment system supporting multiple payment methods including credit cards via Stripe, QR code payments, and cash transactions. The system includes features like saved cards, payment history, invoicing, and secure payment processing with reCAPTCHA verification.
+
+## Payment Methods Supported
+
+### 1. Credit/Debit Cards (Stripe)
+
+Integration with Stripe for secure card payments using `@stripe/stripe-js` and `@stripe/react-stripe-js`.
+
+**Package Dependencies:**
+
+```json
+"dependencies": {
+  "@stripe/react-stripe-js": "^5.4.1",
+  "@stripe/stripe-js": "^8.5.3"
+}
+```
+
+**Location:** `~/workspace/source/package.json:27-28`
+
+### 2. QR Code Payments
+
+Mobile-friendly QR code payment system for instant transfers.
+
+### 3. Cash Payments
+
+Traditional cash payment option for in-person transactions.
+
+## Payment Modal Implementation
+
+The main payment modal allows users to select their preferred payment method:
+
+```typescript
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements } from "@stripe/react-stripe-js";
+import PaymentMethodUI from "./PaymentMethodUI";
+import CardList from "./CardList";
+import { createCashPayment, CreateCashPaymentDTO } from "../service/payment";
+import ReCAPTCHA from 'react-google-recaptcha';
+
+const stripePromise = loadStripe(
+    "pk_test_51SHGq0Fp8K0s2pYx4l5z1fkIcXSouAknc9gUV6PpYKR8TjexmaC3OiJR9jNIa09e280Pa6jGVRA6ZNY7kSCCGcLt002CEmfDnU"
+);
+
+interface PaymentProps {
+    amount: number;
+    jobId: string;
+    requesterId: string;
+    fixerId: string;
+    onClose: () => void;
+    onPaymentSuccess?: () => void;
+}
+
+export default function PaymentMethods({
+    amount,
+    jobId,
+    requesterId,
+    fixerId,
+    onClose,
+    onPaymentSuccess,
+}: PaymentProps) {
+    const [showCashPayment, setShowCashPayment] = useState(false);
+    const [createdPaymentId, setCreatedPaymentId] = useState<string | null>(null);
+    const [securityModalTarget, setSecurityModalTarget] = useState<SecurityModalTarget>(null);
+    const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+
+    return (
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md sm:max-w-lg p-6">
+            <h2 className="text-2xl font-bold text-center">Seleccione su método de pago</h2>
+
+            <div className="w-full flex flex-col gap-4">
+                <button
+                    onClick={startCardFlow}
+                    className="w-full bg-[#1AA7ED] hover:bg-[#2B6AE0] text-[#F9FAFB] px-6 py-3 rounded-lg"
+                >
+                    <span className="text-2xl">💳</span> Tarjeta de Crédito
+                </button>
+
+                <button
+                    onClick={startQrFlow}
+                    className="w-full bg-[#1AA7ED] hover:bg-[#2B6AE0] text-[#F9FAFB] px-6 py-3 rounded-lg"
+                >
+                    <span className="text-2xl">⊞</span> Pago QR
+                </button>
+
+                <button
+                    onClick={handlePayCash}
+                    className="w-full bg-[#1AA7ED] hover:bg-[#2B6AE0] text-[#F9FAFB] px-6 py-3 rounded-lg"
+                >
+                    <span className="text-2xl">💵</span> Pago Efectivo
+                </button>
+            </div>
+        </div>
+    );
+}
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/payment/components/PaymentDemoAdaptado.tsx:1-275`
+
+## Stripe Credit Card Integration
+
+### Stripe Setup
+
+Initialize Stripe with your publishable key:
+
+```typescript
+import { loadStripe } from "@stripe/stripe-js";
+
+const stripePromise = loadStripe(
+    "pk_test_51SHGq0Fp8K0s2pYx4l5z1fkIcXSouAknc9gUV6PpYKR8TjexmaC3OiJR9jNIa09e280Pa6jGVRA6ZNY7kSCCGcLt002CEmfDnU"
+);
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/payment/components/PaymentDemoAdaptado.tsx:15-17`
+
+### Elements Provider
+
+Wrap card components with the Stripe Elements provider:
+
+```typescript
+import { Elements } from "@stripe/react-stripe-js";
+
+<Elements stripe={stripePromise}>
+    <CardList
+        requesterId={requesterId}
+        fixerId={fixerId}
+        jobId={jobId}
+        amount={amount}
+        recaptchaToken={recaptchaToken}
+        onPaymentSuccess={onPaymentSuccess}
+    />
+</Elements>
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/payment/components/PaymentDemoAdaptado.tsx:181-214`
+
+### Add Card Modal
+
+Modal for adding and processing new credit cards:
+
+```typescript
+'use client';
+import { useState } from 'react';
+import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+
+interface AddCardModalProps {
+  userId: string;
+  fixerId: string;
+  jobId: string;
+  amount: number;
+  onClose: () => void;
+  onCardAdded: (payload: OnCardAddedPayload) => void;
+}
+
+export default function AddCardModal({
+  userId,
+  fixerId,
+  jobId,
+  amount,
+  onClose,
+  onCardAdded
+}: AddCardModalProps) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [saveCard, setSaveCard] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [cardHolder, setCardHolder] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) {
+      setErrorMessage('Stripe aún no está listo, espera unos segundos.');
+      return;
+    }
+
+    setLoading(true);
+    const cardElement = elements.getElement(CardElement);
+
+    try {
+      const { error, paymentMethod } = await stripe.createPaymentMethod({
+        type: 'card',
+        card: cardElement,
+        billing_details: { name: cardHolder },
+      });
+      
+      if (error) throw new Error(error.message);
+
+      let cardId = null;
+      if (saveCard) {
+        const cardRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/cardscreate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            paymentMethodId: paymentMethod.id,
+            saveCard,
+            cardholderName: cardHolder,
+          }),
+        });
+        const savedCard = await cardRes.json();
+        if (!cardRes.ok) throw new Error(savedCard.error || 'Error al guardar la tarjeta');
+        cardId = savedCard._id;
+      }
+
+      const paymentRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/createpayment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requesterId: userId,
+          fixerId,
+          jobId,
+          cardId: cardId || null,
+          paymentMethodId: saveCard ? undefined : paymentMethod.id,
+          amount,
+        }),
+      });
+      const paymentData = await paymentRes.json();
+      if (!paymentRes.ok) throw new Error(paymentData.error || 'Error al crear el pago');
+
+      onCardAdded({
+        payment: {
+          _id: paymentData.payment._id,
+          amount: paymentData.payment.amount,
+          card: cardId ? { _id: cardId } : null,
+        },
+        cardSaved: saveCard,
+      });
+
+      setSuccessMessage(
+        saveCard ? 'Pago realizado exitosamente y tarjeta guardada' : 'Pago realizado exitosamente',
+      );
+
+    } catch (err: unknown) {
+      console.error(err);
+      if (err instanceof Error) {
+        setErrorMessage(err.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
+      <div className="bg-[#2B6AE0] text-black p-6 rounded-2xl shadow-2xl w-96 relative">
+        <h2 className="text-xl font-bold mb-3 text-center">Agregar nueva tarjeta</h2>
+        <p className="text-center mb-4 text-black">
+          Monto a pagar: <strong className="text-[#2BDDE0]">{amount} BOB</strong>
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block mb-2 text-sm font-semibold text-black">
+              Nombre de titular*
+            </label>
+            <input
+              type="text"
+              value={cardHolder}
+              onChange={handleCardHolderChange}
+              placeholder="Ej: Juan Pérez"
+              className="w-full bg-[#E5E7EB] border-gray-200 rounded-xl px-3 py-2 text-black outline-none"
+              required
+            />
+          </div>
+
+          <div className="p-3 rounded-xl bg-[#E5E7EB] border text-black border-gray-700">
+            <CardElement
+              options={{
+                hidePostalCode: true,
+                style: {
+                  base: {
+                    fontSize: '16px',
+                    color: '#000',
+                    '::placeholder': { color: '#888' },
+                  },
+                  invalid: { color: '#ff6b6b' },
+                },
+              }}
+            />
+          </div>
+
+          <label className="flex items-center gap-2 text-sm text-black mt-2">
+            <input
+              type="checkbox"
+              checked={saveCard}
+              onChange={(e) => setSaveCard(e.target.checked)}
+              className="accent-blue-500"
+            />
+            Guardar tarjeta para futuros pagos
+          </label>
+
+          <div className="flex justify-between mt-6">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-[#D1D5DB] hover:bg-[#2BDDE0] rounded-xl transition-all"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={!stripe || loading || !isValidHolder}
+              className="px-5 py-2 rounded-xl font-semibold transition-all bg-[#D1D5DB] hover:bg-[#2BDDE0]"
+            >
+              {loading ? 'Procesando...' : 'Pagar'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/payment/components/AddCardModal.tsx:1-247`
+
+### Card Validation
+
+Cardholder name validation:
+
+```typescript
+const handleCardHolderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const value = e.target.value;
+  // Permite solo letras, tildes y espacios
+  const cleanValue = value.replace(/[^a-zA-ZñÑáéíóúÁÉÍÓÚ\s]/g, '');
+  setCardHolder(cleanValue);
+  setIsValidHolder(/^[a-zA-ZñÑáéíóúÁÉÍÓÚ\s]{3,50}$/.test(cleanValue.trim()));
+};
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/payment/components/AddCardModal.tsx:50-56`
+
+### Save Card for Future Use
+
+Users can opt to save their card for future payments:
+
+```typescript
+const [saveCard, setSaveCard] = useState(false);
+
+<label className="flex items-center gap-2 text-sm text-black mt-2">
+  <input
+    type="checkbox"
+    checked={saveCard}
+    onChange={(e) => setSaveCard(e.target.checked)}
+    className="accent-blue-500"
+  />
+  Guardar tarjeta para futuros pagos
+</label>
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/payment/components/AddCardModal.tsx:200-208`
+
+### Saved Cards Management
+
+The CardList component displays saved cards and allows selection:
+
+**Component:** `~/workspace/source/src/app/[locale]/payment/components/CardList.tsx`
+
+For fixer-specific card management:
+
+**Component:** `~/workspace/source/src/app/[locale]/payment/FixerWallet/recarga/CardListFixer.tsx`
+
+## QR Code Payments
+
+### QR Payment Flow
+
+1. User selects QR payment option
+2. reCAPTCHA verification is required
+3. Redirect to QR payment page with transaction details
+4. Display QR code for scanning
+5. Process payment confirmation
+
+```typescript
+const handleGoToQR = (token: string) => {
+    router.push(
+        `/payment/pago-qr?trabajoId=${jobId}&bookingId=TRABAJO-${jobId}&providerId=DEMO-PROVIDER&amount=${amount}&currency=BOB&recaptchaToken=${token}`
+    );
+};
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/payment/components/PaymentDemoAdaptado.tsx:59-62`
+
+### QR Payment Pages
+
+**QR Generation Page:** `~/workspace/source/src/app/[locale]/payment/pago-qr/page.tsx`
+
+**QR Wallet Page:** `~/workspace/source/src/app/[locale]/payment/qrwallet/page.tsx`
+
+**QR Wallet Client:** `~/workspace/source/src/app/[locale]/payment/qrwallet/QRPageClient.tsx`
+
+## Cash Payments
+
+### Cash Payment Creation
+
+Cash payments are handled through a dedicated API:
+
+```typescript
+const handlePayCash = async () => {
+    try {
+        const payload: CreateCashPaymentDTO = {
+            jobId,
+            requesterId,
+            fixerId,
+            subTotal: amount,
+            service_fee: 0,
+            discount: 0,
+            currency: "BOB",
+            paymentMethods: "cash",
+        };
+        
+        const resp = await createCashPayment(payload);
+        const created: PaymentResponse = resp?.data || resp?.payment || resp;
+        setCreatedPaymentId(created?.id || created?._id || null);
+        setShowCashPayment(true);
+    } catch (error) {
+        const err = error as Error;
+        console.error("Error creando pago en efectivo:", err);
+        alert(err.message || "Error al crear pago en efectivo");
+    }
+};
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/payment/components/PaymentDemoAdaptado.tsx:84-106`
+
+### Cash Payment UI
+
+After creating a cash payment, the PaymentMethodUI component displays payment details:
+
+```typescript
+{showCashPayment && createdPaymentId && (
+    <PaymentMethodUI
+        paymentId={createdPaymentId}
+        onClose={() => setShowCashPayment(false)}
+        jobId={jobId}
+        requesterId={requesterId}
+        fixerId={fixerId}
+    />
+)}
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/payment/components/PaymentDemoAdaptado.tsx:154-162`
+
+**Component:** `~/workspace/source/src/app/[locale]/payment/components/PaymentMethodUI.tsx`
+
+**Fixer-specific cash component:** `~/workspace/source/src/app/[locale]/payment/components/PaymentMethodCashFixer.tsx`
+
+**Physical payments page:** `~/workspace/source/src/app/[locale]/payment/Pagos-Fisico/page.tsx`
+
+## Security Features
+
+### reCAPTCHA Verification
+
+All payment methods require reCAPTCHA verification to prevent fraud:
+
+```typescript
+import ReCAPTCHA from 'react-google-recaptcha';
+
+const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '';
+const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+
+const handleRecaptchaChange = (token: string | null) => {
+    setRecaptchaToken(token);
+    
+    if (token && securityModalTarget === 'qr') {
+        handleGoToQR(token);
+        setSecurityModalTarget(null);
+    }
+};
+
+<ReCAPTCHA
+    sitekey={RECAPTCHA_SITE_KEY}
+    onChange={handleRecaptchaChange}
+/>
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/payment/components/PaymentDemoAdaptado.tsx:13,55,65-72,189-192,249-251`
+
+### Security Modal for Card Payments
+
+reCAPTCHA is required before accessing card payment options:
+
+```typescript
+<div className='my-4'>
+    <p className="text-sm text-gray-600 mb-2">Verificación de seguridad requerida:</p>
+    <ReCAPTCHA
+        sitekey={RECAPTCHA_SITE_KEY}
+        onChange={handleRecaptchaChange}
+    />
+</div>
+
+<div className="w-full relative">
+    {!recaptchaToken && (
+        <div className="absolute inset-0 z-10 bg-white/70 flex items-center justify-center rounded-xl">
+            <p className="text-lg font-bold text-red-600 p-4 text-center">
+                Por favor, completa la verificación de seguridad 👆
+            </p>
+        </div>
+    )}
+    <CardList
+        requesterId={requesterId}
+        fixerId={fixerId}
+        jobId={jobId}
+        amount={amount}
+        recaptchaToken={recaptchaToken}
+        onPaymentSuccess={onPaymentSuccess}
+    />
+</div>
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/payment/components/PaymentDemoAdaptado.tsx:187-214`
+
+## Payment History and Invoicing
+
+### Payment History
+
+**Page:** `~/workspace/source/src/app/[locale]/payment/historial/page.tsx`
+
+Displays:
+- Transaction history
+- Payment status
+- Payment methods used
+- Amounts and dates
+- Download receipts
+
+### Invoice Management
+
+**Invoice List Page:** `~/workspace/source/src/app/[locale]/payment/facturas/page.tsx`
+
+**Invoice Detail Page:** `~/workspace/source/src/app/[locale]/payment/detalleFactura/[invoiceId]/page.tsx`
+
+Features:
+- View invoice details
+- Download PDF invoices
+- Track payment status
+- Invoice history
+
+## Fixer Wallet System
+
+Fixers have a wallet system for managing earnings:
+
+### Wallet Overview
+
+**Main Wallet Page:** `~/workspace/source/src/app/[locale]/payment/FixerWallet/page.tsx`
+
+Displays:
+- Current balance
+- Transaction history
+- Withdrawal options
+- Recharge options
+
+### Wallet Recharge
+
+**Recharge Page:** `~/workspace/source/src/app/[locale]/payment/FixerWallet/recarga/page.tsx`
+
+**Recharge Client:** `~/workspace/source/src/app/[locale]/payment/FixerWallet/recarga/RechargePageClient.tsx`
+
+**Bank Transfer:** `~/workspace/source/src/app/[locale]/payment/FixerWallet/recarga/TransferBank.tsx`
+
+Methods:
+- Credit card recharge
+- Bank transfer
+- QR payment
+
+### Bank Account Management
+
+**Page:** `~/workspace/source/src/app/[locale]/payment/cuenta-bancaria/page.tsx`
+
+**Client Component:** `~/workspace/source/src/app/[locale]/payment/cuenta-bancaria/CuentaBancariaClient.tsx`
+
+Fixers can:
+- Add bank accounts for withdrawals
+- Manage multiple bank accounts
+- Set default withdrawal account
+- View bank account details
+
+## Job Payment Management
+
+### Jobs List with Payment Status
+
+**Page:** `~/workspace/source/src/app/[locale]/payment/trabajos/page.tsx`
+
+**Jobs List Component:** `~/workspace/source/src/app/[locale]/payment/trabajos/TrabajosList.tsx`
+
+**Loading Fallback:** `~/workspace/source/src/app/[locale]/payment/trabajos/LoadingFallback.tsx`
+
+Displays:
+- Active jobs
+- Pending payments
+- Completed payments
+- Payment amounts
+
+### Payment Center
+
+**Page:** `~/workspace/source/src/app/[locale]/payment/centro-de-pagos/page.tsx`
+
+Centralized hub for:
+- All payment activities
+- Payment methods management
+- Transaction overview
+- Quick actions
+
+## Payment Flow
+
+### 1. Initiate Payment
+
+```typescript
+// From booking or job completion
+<PaymentMethods
+    amount={jobAmount}
+    jobId={job._id}
+    requesterId={requester._id}
+    fixerId={fixer._id}
+    onClose={handleCloseModal}
+    onPaymentSuccess={handlePaymentSuccess}
+/>
+```
+
+### 2. Select Payment Method
+
+User chooses from:
+- Credit/Debit Card
+- QR Payment
+- Cash Payment
+
+### 3. Complete reCAPTCHA
+
+Security verification before processing payment.
+
+### 4. Process Payment
+
+Depending on method:
+- **Card**: Stripe processes payment immediately
+- **QR**: User scans QR and confirms payment
+- **Cash**: Payment marked as pending, confirmed by fixer
+
+### 5. Confirmation
+
+Payment success triggers:
+- Receipt generation
+- Notification to both parties
+- Job status update
+- Wallet balance update (for fixer)
+
+## Back Button Component
+
+Navigation helper for payment pages:
+
+**Component:** `~/workspace/source/src/app/[locale]/payment/components/BackButton.tsx`
+
+```typescript
+import BackButton from './BackButton';
+
+<BackButton />
+```
+
+## Best Practices
+
+1. **Always use HTTPS** for payment pages
+2. **Never store raw card details** - use Stripe tokens
+3. **Implement reCAPTCHA** for all payment flows
+4. **Validate payment amounts** on both client and server
+5. **Use environment variables** for API keys
+6. **Handle payment errors gracefully** with user-friendly messages
+7. **Implement proper loading states** during payment processing
+8. **Show payment confirmation** immediately after success
+9. **Send email receipts** for all transactions
+10. **Log all payment attempts** for audit purposes
+11. **Test with Stripe test cards** before production
+12. **Implement retry logic** for failed payments
+13. **Support multiple currencies** if expanding internationally
+14. **Enable refunds** through admin panel
+15. **Monitor for suspicious activity** and fraud patterns
+
+## Related Files
+
+- Payment modal: `~/workspace/source/src/app/[locale]/payment/components/PaymentDemoAdaptado.tsx`
+- Add card modal: `~/workspace/source/src/app/[locale]/payment/components/AddCardModal.tsx`
+- Card list: `~/workspace/source/src/app/[locale]/payment/components/CardList.tsx`
+- Payment history: `~/workspace/source/src/app/[locale]/payment/historial/page.tsx`
+- Invoices: `~/workspace/source/src/app/[locale]/payment/facturas/page.tsx`
+- Fixer wallet: `~/workspace/source/src/app/[locale]/payment/FixerWallet/page.tsx`
+- QR payment: `~/workspace/source/src/app/[locale]/payment/pago-qr/page.tsx`
+- Cash payment UI: `~/workspace/source/src/app/[locale]/payment/components/PaymentMethodUI.tsx`

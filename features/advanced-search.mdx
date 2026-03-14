@@ -1,0 +1,406 @@
+---
+title: 'Advanced Search'
+description: 'Deep dive into the advanced search system with multi-parameter filtering'
+---
+
+## Overview
+
+The Advanced Search feature provides power users with granular control over search parameters. It combines all basic filters with additional options like price ranges, date filtering, rating selection, and tag-based filtering.
+
+## Advanced Search Page
+
+The advanced search interface is available at `/adv-search` and provides a comprehensive filtering experience:
+
+```tsx title="src/app/[locale]/adv-search/page.tsx" {20-22}
+function AdvancedSearchPage() {
+  const t = useTranslations('advancedSearch');
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+  const {
+    // state
+    searchQuery,
+    titleOnly,
+    exactWords,
+    selectedRanges,
+    selectedCity,
+    selectedJobs,
+    selectedTags,
+    selectedPriceKey,
+    loading,
+    resultsCount,
+    // handlers
+    handleSearch,
+    // ...
+  } = useAdvSearchLogic();
+  // ...
+}
+```
+
+## Search Options
+
+### Search Modifiers
+
+The `SearchCheckboxes` component provides two key search modifiers:
+
+```tsx title="src/Components/Adv-search/SearchCheckboxes.tsx" {13-18}
+export function SearchCheckboxes({
+  titleOnly,
+  setTitleOnly,
+  exactWords,
+  setExactWords,
+}: SearchCheckboxesProps) {
+  const t = useTranslations('search');
+
+  return (
+    <div className="w-full bg-gray-100 border rounded-lg p-4 mt-4">
+      <div className="flex flex-col gap-3">
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={titleOnly}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setTitleOnly(checked);
+              if (checked) setExactWords(false);
+            }}
+          />
+          <span>{t('titleOnly')}</span>
+        </label>
+
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={exactWords}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setExactWords(checked);
+              if (checked) setTitleOnly(false);
+            }}
+          />
+          <span>{t('exactWords')}</span>
+        </label>
+      </div>
+    </div>
+  );
+}
+```
+
+**Search Modes:**
+
+- **Title Only**: Searches only in job offer titles
+- **Exact Words**: Matches exact phrases in title and description
+- Mutually exclusive options
+
+## Filter Parameters
+
+### 1. Fixer Name Ranges
+
+Filter professionals by alphabetical name ranges (A-C, D-F, G-I, etc.):
+
+```tsx title="Fixer name range configuration"
+const FIXER_RANGES = [
+  [
+    { dbValue: 'A-C', label: t('fixerName.ranges.ac') },
+    { dbValue: 'D-F', label: t('fixerName.ranges.df') },
+    { dbValue: 'G-I', label: t('fixerName.ranges.gi') },
+    { dbValue: 'J-L', label: t('fixerName.ranges.jl') },
+    { dbValue: 'M-Ñ', label: t('fixerName.ranges.mn') },
+  ],
+  [
+    { dbValue: 'O-Q', label: t('fixerName.ranges.oq') },
+    { dbValue: 'R-T', label: t('fixerName.ranges.rt') },
+    { dbValue: 'U-W', label: t('fixerName.ranges.uw') },
+    { dbValue: 'X-Z', label: t('fixerName.ranges.xz') },
+  ],
+];
+```
+
+### 2. Cities
+
+Location filtering across all Bolivian departments:
+
+```tsx title="City configuration"
+const CITIES = DB_VALUES.cities.map((dbValue, index) => ({
+  dbValue,
+  label: t(`city.options.${
+    ['beni', 'chuquisaca', 'cochabamba', 'laPaz', 'oruro', 
+     'pando', 'potosi', 'santaCruz', 'tarija'][index]
+  }`),
+}));
+```
+
+### 3. Job Types
+
+Comprehensive service category filtering:
+
+```tsx title="Job type configuration"
+const JOBS = DB_VALUES.jobTypes.map((dbValue, index) => ({
+  dbValue,
+  label: t(`jobType.options.${
+    ['mason', 'carpenter', 'locksmith', 'decorator', 'electrician',
+     'plumber', 'fumigator', 'installer', 'gardener', 'cleaner',
+     'mechanic', 'assembler', 'painter', 'polisher', 'welder',
+     'roofer', 'glazier', 'plasterer'][index]
+  }`),
+}));
+```
+
+### 4. Price Ranges
+
+Dynamic price filtering with API-backed ranges:
+
+```tsx title="src/Components/Adv-search/PriceRangeList.tsx" {23-29}
+const PriceRangeList: React.FC<PriceRangeListProps> = ({ 
+  onFilterChange, 
+  clearSignal 
+}) => {
+  const t = useTranslations('advancedSearch');
+  const [selectedRanges, setSelectedRanges] = useState<string[]>([]);
+  const [ranges, setRanges] = useState<RangeItem[]>([]);
+
+  // RTK Query for price ranges
+  const { 
+    data: priceRangesData, 
+    isLoading, 
+    error: queryError 
+  } = useGetPriceRangesQuery();
+
+  // Handle checkbox changes
+  const handleCheckboxChange = (rangeValue: string) => {
+    const newSelectedRanges = selectedRanges.includes(rangeValue)
+      ? selectedRanges.filter((range) => range !== rangeValue)
+      : [...selectedRanges, rangeValue];
+
+    setSelectedRanges(newSelectedRanges);
+    const priceKey = newSelectedRanges.length === 1 
+      ? newSelectedRanges[0] 
+      : '';
+    onFilterChange?.({ priceRanges: newSelectedRanges, priceKey });
+  };
+  // ...
+}
+```
+
+**Features:**
+
+- Fetches price ranges from API using RTK Query
+- Caches ranges in sessionStorage for performance
+- Formats currency labels (e.g., "$90" → "90bs")
+- Supports single or multiple range selection
+
+### 5. Tags
+
+Dynamic tag filtering based on selected job types:
+
+```tsx title="Tag filtering"
+<DropdownList
+  onFilterChange={handleDropdownChange}
+  clearSignal={clearSignal}
+  searchQuery={searchQuery}
+  categoryFilters={selectedJobs}
+/>
+```
+
+### 6. Date Filters
+
+Three date filtering modes:
+
+```tsx title="Date filter options"
+<DateFilterSelector
+  selectedFilter={selectedDateFilter}
+  selectedDate={selectedSpecificDate}
+  onChange={(f, d) => {
+    setSelectedDateFilter(f);
+    setSelectedSpecificDate(d ?? null);
+  }}
+  onCalendarToggle={setIsCalendarOpen}
+  clearSignal={clearSignal}
+/>
+```
+
+**Modes:**
+
+- **Specific Date**: Select exact date using calendar
+- **Most Recent**: Sort by newest first
+- **Oldest**: Sort by oldest first
+
+### 7. Rating Filter
+
+Filter by minimum rating (1-5 stars):
+
+```tsx title="Rating selection"
+<CalificacionEstrella 
+  value={selectedRating} 
+  onChange={setSelectedRating} 
+/>
+```
+
+## Results Counter
+
+Real-time results count updates as filters change:
+
+```tsx title="src/Components/Adv-search/ResultsCounter.tsx"
+export function ResultsCounter({ 
+  total, 
+  loading 
+}: ResultsCounterProps) {
+  const t = useTranslations('advancedSearch.resultsCounter');
+
+  return (
+    <div className="flex items-center justify-between p-4 bg-blue-50">
+      <span className="font-semibold">
+        {t('resultsCountLabel')}
+      </span>
+      <span className="text-2xl font-bold text-blue-600">
+        {loading ? t('loading') : total}
+      </span>
+    </div>
+  );
+}
+```
+
+## URL State Synchronization
+
+Advanced search state is synchronized with URL parameters:
+
+```tsx title="URL sync hook usage" {1-18}
+useSyncUrlParamsAdv({
+  search: searchQuery,
+  filters: {
+    range: selectedRanges,
+    city: selectedCity,
+    category: selectedJobs,
+    tags: selectedTags,
+    minPrice: _minPrice,
+    maxPrice: _maxPrice,
+  },
+  date: advDate,
+  rating: selectedRating,
+  sortBy: advSort,
+  titleOnly,
+  exact: exactWords,
+  skipSyncRef,
+});
+```
+
+This enables:
+
+- **Shareable search URLs**
+- **Browser back/forward navigation**
+- **Bookmark support**
+- **Deep linking** to specific search results
+
+## Search Execution
+
+The search is executed when users click "Apply Search":
+
+```tsx title="Search button"
+<ButtonAplicarBus
+  onClick={() => handleSearch(searchQuery)}
+  loading={storeLoading ?? loading}
+/>
+```
+
+## Clear Filters
+
+Users can reset all filters to default state:
+
+```tsx title="Clear all filters" {2-14}
+<ClearButton
+  onClick={() => {
+    setSearchQuery('');
+    setSelectedRanges([]);
+    setSelectedCity([]);
+    setSelectedJobs([]);
+    setSelectedCategories([]);
+    setSelectedPriceRanges([]);
+    setTitleOnly(false);
+    setExactWords(false);
+    setResultsCount(null);
+    setSelectedDateFilter('specific');
+    setSelectedSpecificDate(null);
+    setSelectedRating(null);
+    setClearSignal((s) => s + 1);
+    fetchGlobalTotal();
+  }}
+/>
+```
+
+## Keyboard Shortcuts
+
+Advanced search supports keyboard navigation:
+
+- **ESC**: Exit advanced search and return to job offers list
+
+```tsx title="ESC key handler"
+useEffect(() => {
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      router.push('/job-offer-list');
+    }
+  };
+
+  window.addEventListener('keydown', onKeyDown);
+  return () => window.removeEventListener('keydown', onKeyDown);
+}, [router]);
+```
+
+## Help System
+
+Integrated help button provides guidance:
+
+```tsx
+<HelpButton />
+```
+
+Displays step-by-step instructions for using all advanced search features.
+
+## Responsive Layout
+
+The advanced search adapts to calendar visibility:
+
+```tsx title="Dynamic padding for calendar" {2}
+<main className={`pt-20 lg:pt-24 px-4 transition-all duration-300 ${
+  isCalendarOpen ? 'pb-96' : 'pb-12'
+}`}>
+  {/* Search interface */}
+</main>
+```
+
+## State Persistence
+
+Advanced search state is preserved in sessionStorage:
+
+```tsx
+// Save state
+window.sessionStorage.setItem('advSearch_state', JSON.stringify(state));
+
+// Clear state on reset
+window.sessionStorage.removeItem('advSearch_state');
+window.sessionStorage.removeItem('fromAdv');
+window.sessionStorage.removeItem('appliedFilters');
+```
+
+## Performance Optimizations
+
+1. **Price range caching** in sessionStorage
+2. **Debounced URL updates** to prevent excessive history entries
+3. **Conditional rendering** of filter sections (only open sections render content)
+4. **Memoized filter lists** to prevent recalculation
+5. **Lazy loading** of dropdown options
+
+## Best Practices
+
+1. **Provide real-time feedback** on results count
+2. **Preserve user selections** across sessions when appropriate
+3. **Support keyboard navigation** for power users
+4. **Make filters mutually exclusive** when it makes sense (titleOnly vs exactWords)
+5. **Show clear visual indicators** for active filters
+6. **Enable URL sharing** for collaborative searching
+7. **Offer quick reset** to clear all filters
+
+## Related Features
+
+- [Search and Filters](/features/search-and-filters) - Basic search functionality
+- [Map Integration](/features/map-integration) - Visual search results
+- [Internationalization](/features/internationalization) - Multi-language support

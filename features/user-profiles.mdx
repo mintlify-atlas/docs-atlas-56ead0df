@@ -1,0 +1,532 @@
+---
+title: 'User Profiles'
+description: 'Profile management system for requesters and fixers with ratings and reviews'
+---
+
+## Overview
+
+Servineo supports two primary user types with distinct profile features: **Requesters** (clients who request services) and **Fixers** (service providers). Each profile type has specific fields and capabilities tailored to their role in the platform.
+
+## User Types
+
+### User Interface Definition
+
+The core user interface defines the structure for both user types:
+
+```typescript
+export interface IUser {
+  _id?: string;
+  id?: string;
+  name: string;
+  email: string;
+  url_photo?: string;
+  role: 'requester' | 'fixer' | 'admin';
+
+  authProviders?: Array<{
+    provider: string;
+    providerId: string;
+    password?: string;
+  }>;
+
+  telefono?: string;
+
+  ubicacion?: {
+    lat?: number;
+    lng?: number;
+    direccion?: string;
+    departamento?: string;
+    pais?: string;
+  };
+
+  ci?: string;
+  servicios?: string[];
+
+  vehiculo?: {
+    hasVehiculo?: boolean;
+    tipoVehiculo?: string;
+  };
+
+  fixerProfile?: string;
+  acceptTerms?: boolean;
+
+  metodoPago?: {
+    hasEfectivo?: boolean;
+    qr?: boolean;
+    tarjetaCredito?: boolean;
+  };
+
+  experience?: {
+    descripcion?: string;
+  };
+
+  workLocation?: {
+    lat?: number;
+    lng?: number;
+    direccion?: string;
+    departamento?: string;
+    pais?: string;
+  };
+  
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+```
+
+**Location:** `~/workspace/source/src/types/user.ts:1-57`
+
+### Requester Profiles
+
+Requesters are clients who book services. Their profiles include:
+
+- **Basic Information**: Name, email, photo
+- **Contact**: Phone number
+- **Location**: Address with coordinates (lat/lng)
+- **Payment Methods**: Preferred payment options
+- **Terms Acceptance**: Agreement to platform terms
+
+### Fixer Profiles
+
+Fixers are service providers with additional professional information:
+
+- **All Requester Fields** plus:
+- **Services Offered**: Array of service categories (`servicios`)
+- **Professional Experience**: Description of work history
+- **Work Location**: Service area with coordinates
+- **Vehicle Information**: Type of vehicle (if applicable)
+- **CI (Identification)**: Identity verification
+- **Ratings & Reviews**: Client feedback and ratings
+
+## Profile Page Implementation
+
+The profile page displays user information dynamically based on the user ID:
+
+```typescript
+'use client';
+import { useParams } from 'next/navigation';
+import FixerProfile from './fixer-profile';
+import { ClientRatings } from './components';
+import './theme.css';
+
+export default function ProfilePage() {
+  const { id } = useParams();
+
+  if (!id) {
+    return (
+      <div className='flex items-center justify-center min-h-screen bg-gray-100'>
+        <div className='bg-white p-6 rounded-lg shadow'>ID de usuario no proporcionado.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className='min-h-screen bg-gray-100 flex flex-col'>
+      <header className='bg-white border-b border-gray-300 w-full fixed top-0 left-0 z-50'>
+        <div className='px-6 py-4'>
+          <h1 className='text-xl font-semibold text-gray-900'>Servineo</h1>
+        </div>
+      </header>
+
+      <main className='flex-grow pt-20 px-6 pb-12'>
+        <div className='max-w-4xl mx-auto space-y-8'>
+          <FixerProfile userId={id as string} />
+
+          <section
+            aria-labelledby='ratings-heading'
+            className='bg-white rounded-2xl border border-gray-200 p-6 shadow-sm'
+          >
+            <div className='flex items-center justify-between mb-4'>
+              <h2 id='ratings-heading' className='text-2xl font-semibold tracking-tight'>
+                Rating Details
+              </h2>
+            </div>
+
+            <div>
+              <ClientRatings fixerId={id as string} />
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  );
+}
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/profile/[id]/page.tsx:1-49`
+
+## Profile Components
+
+### FixerProfile Component
+
+The main profile component that fetches and displays fixer information:
+
+```typescript
+import FixerProfile from './fixer-profile';
+
+<FixerProfile userId={id as string} />
+```
+
+This component is responsible for:
+- Fetching user data from the backend
+- Displaying profile photo and basic information
+- Showing services offered
+- Displaying work location and contact details
+- Managing profile edit functionality (for own profile)
+
+**Location:** `~/workspace/source/src/app/[locale]/profile/[id]/page.tsx:28`
+
+### ClientRatings Component
+
+Displays ratings and reviews from clients:
+
+```typescript
+import { ClientRatings } from './components';
+
+<ClientRatings fixerId={id as string} />
+```
+
+Features:
+- Overall rating score
+- Individual review cards
+- Rating breakdown by category
+- Review timestamps
+- Client information
+
+**Location:** `~/workspace/source/src/app/[locale]/profile/[id]/page.tsx:41`
+
+## Profile Setup During Registration
+
+New users complete their profile through a multi-step registration flow:
+
+### Step 1: Phone Number
+
+Users provide their contact number for verification:
+
+```typescript
+export async function enviarTelefono(telefono: string): Promise<TelefonoResponse> {
+  const token = localStorage.getItem('servineo_token');
+  try {
+    const res = await fetch(`${BASE_URL}/registrar/telefono`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ telefono }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(`Error ${res.status}: ${data.error || res.statusText}`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error al enviar el teléfono al backend:', error);
+    throw error;
+  }
+}
+```
+
+**Location:** `~/workspace/source/src/app/redux/services/auth/registro.ts:87-111`
+
+**Page:** `~/workspace/source/src/app/[locale]/signUp/registrar/telefono/page.tsx`
+
+### Step 2: Location Setup
+
+Users set their location using an interactive map:
+
+```typescript
+export async function enviarUbicacion(
+  lat: number,
+  lng: number,
+  direccion: string | null,
+  departamento: string | null,
+  pais: string | null,
+): Promise<UbicacionResponse> {
+  const token = localStorage.getItem('servineo_token');
+  try {
+    const res = await fetch(`${BASE_URL}/registrar/ubicacion`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ lat, lng, direccion, departamento, pais }),
+    });
+
+    if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`);
+    return await res.json();
+  } catch (error) {
+    console.error('Error al enviar la ubicación al backend:', error);
+    throw error;
+  }
+}
+```
+
+**Location:** `~/workspace/source/src/app/redux/services/auth/registro.ts:60-84`
+
+**Page:** `~/workspace/source/src/app/[locale]/signUp/registrar/registroUbicacion/page.tsx`
+
+### Step 3: Photo Upload
+
+Users can upload a profile photo:
+
+**Page:** `~/workspace/source/src/app/[locale]/signUp/registrar/registrarFoto/page.tsx`
+
+### Step 4: Service Selection (Fixers Only)
+
+Fixers select the services they offer:
+
+**Page:** `~/workspace/source/src/app/[locale]/signUp/registrar/registroServicios/page.tsx`
+
+This page allows fixers to:
+- Browse available service categories
+- Select multiple services
+- Add service descriptions
+- Set service availability
+
+### Step 5: Terms and Conditions
+
+Users must accept the platform's terms and conditions:
+
+**Page:** `~/workspace/source/src/app/[locale]/signUp/registrar/Terminosycondiciones/page.tsx`
+
+## Profile Management
+
+### Viewing Profiles
+
+Profiles are accessed via dynamic routes:
+
+```
+/profile/[id]
+```
+
+Where `[id]` is the user's unique identifier. The page automatically detects if the profile belongs to the current user and shows edit options accordingly.
+
+### Profile Modal Window
+
+A modal component for quick profile actions:
+
+**Component:** `~/workspace/source/src/app/[locale]/profile/[id]/modal-window.tsx`
+
+Features:
+- Quick contact options
+- Service booking
+- Share profile
+- Report issues
+
+### Profile Components
+
+Additional profile components for enhanced functionality:
+
+**Component File:** `~/workspace/source/src/app/[locale]/profile/[id]/components.tsx`
+
+Includes:
+- Service cards
+- Review cards
+- Rating statistics
+- Contact buttons
+- Location maps
+
+## Location Management
+
+Both user types have location fields:
+
+### Requester Location
+
+Stored in the `ubicacion` field:
+
+```typescript
+ubicacion?: {
+  lat?: number;
+  lng?: number;
+  direccion?: string;
+  departamento?: string;
+  pais?: string;
+}
+```
+
+Used for:
+- Finding nearby fixers
+- Service delivery address
+- Booking location
+
+### Fixer Work Location
+
+Stored in the `workLocation` field:
+
+```typescript
+workLocation?: {
+  lat?: number;
+  lng?: number;
+  direccion?: string;
+  departamento?: string;
+  pais?: string;
+}
+```
+
+Used for:
+- Defining service area
+- Calculating travel distance
+- Matching with nearby requests
+
+## Payment Method Preferences
+
+Users can specify their preferred payment methods:
+
+```typescript
+metodoPago?: {
+  hasEfectivo?: boolean;      // Cash payments
+  qr?: boolean;               // QR code payments
+  tarjetaCredito?: boolean;   // Credit card payments
+}
+```
+
+This information is used during the booking and payment process to show relevant payment options.
+
+## Vehicle Information (Fixers)
+
+Fixers who need vehicles for their services can specify:
+
+```typescript
+vehiculo?: {
+  hasVehiculo?: boolean;      // Does the fixer have a vehicle?
+  tipoVehiculo?: string;      // Type of vehicle (car, truck, motorcycle, etc.)
+}
+```
+
+Useful for:
+- Delivery services
+- Moving services
+- Equipment transport
+- Emergency services
+
+## Professional Experience
+
+Fixers can add a detailed description of their experience:
+
+```typescript
+experience?: {
+  descripcion?: string;
+}
+```
+
+This appears on their profile page and helps clients make informed booking decisions.
+
+## Ratings and Reviews System
+
+### Rating Storage
+
+Ratings are linked to user profiles and displayed in the ClientRatings component.
+
+### Rating Display
+
+The rating section shows:
+- Overall rating (average of all reviews)
+- Number of reviews
+- Individual review cards with:
+  - Client name and photo
+  - Rating (1-5 stars)
+  - Review text
+  - Service type
+  - Date of service
+
+### Rating Component Implementation
+
+```typescript
+<section
+  aria-labelledby='ratings-heading'
+  className='bg-white rounded-2xl border border-gray-200 p-6 shadow-sm'
+>
+  <div className='flex items-center justify-between mb-4'>
+    <h2 id='ratings-heading' className='text-2xl font-semibold tracking-tight'>
+      Rating Details
+    </h2>
+  </div>
+
+  <div>
+    <ClientRatings fixerId={id as string} />
+  </div>
+</section>
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/profile/[id]/page.tsx:30-44`
+
+## Profile Authentication
+
+Profile data is accessed using the stored authentication token:
+
+```typescript
+const token = localStorage.getItem('servineo_token');
+
+const headers = {
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${token}`,
+};
+```
+
+This ensures that:
+- Only authenticated users can view certain profile details
+- Users can only edit their own profiles
+- Sensitive information is protected
+
+## Profile Data Storage
+
+User data is stored both in the backend and locally:
+
+### Backend Storage
+
+Profile data is stored in the backend database and accessed via API endpoints.
+
+### Local Storage
+
+Basic user information is cached in localStorage for quick access:
+
+```typescript
+localStorage.setItem('servineo_user', JSON.stringify(normalizedUser));
+
+const normalizedUser = {
+  _id: user._id || user.id,
+  id: user.id || user._id,
+  name: user.name || user.displayName || 'Usuario',
+  email: user.email,
+  url_photo: user.picture || user.url_photo || null,
+  role: user.role || 'requester',
+};
+```
+
+## Profile Styling
+
+The profile page uses custom CSS themes:
+
+**Theme File:** `~/workspace/source/src/app/[locale]/profile/[id]/theme.css`
+
+```typescript
+import './theme.css';
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/profile/[id]/page.tsx:5`
+
+## Best Practices
+
+1. **Always validate user input** during profile updates
+2. **Use optimistic UI updates** for better user experience
+3. **Cache profile data** to reduce API calls
+4. **Handle missing profile photos** gracefully with default avatars
+5. **Validate location coordinates** before saving
+6. **Require authentication** for viewing sensitive profile information
+7. **Implement proper error handling** for profile updates
+8. **Show loading states** while fetching profile data
+9. **Use responsive design** for mobile-friendly profiles
+10. **Optimize images** for faster loading
+
+## Related Files
+
+- Profile page: `~/workspace/source/src/app/[locale]/profile/[id]/page.tsx`
+- Fixer profile component: `~/workspace/source/src/app/[locale]/profile/[id]/fixer-profile.tsx`
+- Profile components: `~/workspace/source/src/app/[locale]/profile/[id]/components.tsx`
+- Modal window: `~/workspace/source/src/app/[locale]/profile/[id]/modal-window.tsx`
+- User types: `~/workspace/source/src/types/user.ts`
+- Registration services: `~/workspace/source/src/app/redux/services/auth/`

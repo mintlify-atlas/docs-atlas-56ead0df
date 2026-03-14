@@ -1,0 +1,384 @@
+---
+title: 'Managing Job Offers'
+description: 'Review, accept, and manage job offers received from fixers'
+icon: 'handshake'
+---
+
+## Overview
+
+After creating a job request, fixers respond with job offers containing their proposed pricing, timing, and service details. The Job Offers page helps you review and manage these proposals.
+
+## Accessing Job Offers
+
+Navigate to `/job-offer-list` to view all available job offers, including:
+
+- Offers you've received from your requests
+- General service offerings from fixers
+- Promoted and featured services
+
+## Offer Card Information
+
+Each job offer displays key information at a glance:
+
+### Card Components
+
+<CardGroup cols={2}>
+  <Card title="Fixer Details" icon="user">
+    - Fixer name
+    - Professional photo
+    - Rating and reviews
+  </Card>
+  
+  <Card title="Service Info" icon="briefcase">
+    - Job title
+    - Category badge
+    - Brief description
+  </Card>
+  
+  <Card title="Location & Date" icon="map-pin">
+    - City/neighborhood
+    - Date posted
+    - Service area
+  </Card>
+  
+  <Card title="Pricing" icon="dollar-sign">
+    - Rate in Bolivianos (Bs)
+    - Special promotions
+    - Discounts available
+  </Card>
+</CardGroup>
+
+## Viewing Offer Details
+
+Click any offer card to open the detailed modal:
+
+### Modal Sections
+
+<Tabs>
+  <Tab title="Overview">
+    **Header Information:**
+    - Large service photo
+    - Service title and category
+    - Location with map icon
+    - Price prominently displayed
+    - Creation date
+    
+    ```tsx Components/Job-offers/Job-offer-modal.tsx
+    <div className='absolute bottom-4 left-6 right-6 text-white'>
+      <span className='px-2.5 py-1 bg-primary/90 rounded-full'>
+        {tCat(category)}
+      </span>
+      <h2 className='text-2xl sm:text-3xl font-bold'>{title}</h2>
+    </div>
+    ```
+  </Tab>
+  
+  <Tab title="Description">
+    Full service description including:
+    - What's included
+    - Service scope
+    - Required materials
+    - Estimated duration
+    - Special notes
+  </Tab>
+  
+  <Tab title="Services">
+    Complete list of services offered:
+    
+    ```tsx
+    {servicesList && servicesList.length > 0 && (
+      <div className='flex flex-wrap gap-2'>
+        {servicesList.map((s, i) => (
+          <span className='px-3 py-1 bg-gray-100 rounded-lg'>
+            {s}
+          </span>
+        ))}
+      </div>
+    )}
+    ```
+  </Tab>
+  
+  <Tab title="Gallery">
+    Photo gallery showing:
+    - Previous work samples
+    - Service equipment
+    - Completed projects
+    - Certifications
+  </Tab>
+  
+  <Tab title="Promotions">
+    Active promotions and discounts:
+    
+    ```tsx Components/Job-offers/Job-offer-modal.tsx
+    {promotions.length > 0 && (
+      <div className='p-4 bg-gradient-to-r from-yellow-50 to-amber-50'>
+        <div className='flex items-center gap-2'>
+          <Gift className='w-4 h-4 text-yellow-500' />
+          <h3>Promociones Disponibles</h3>
+          <span className='bg-yellow-500 text-white px-2 py-1 rounded-full'>
+            {promotions.length}
+          </span>
+        </div>
+        {promotions.map((promo) => (
+          <div key={promo._id} className='bg-white p-3 rounded-lg'>
+            <h4>{promo.title}</h4>
+            <p>{promo.description}</p>
+          </div>
+        ))}
+      </div>
+    )}
+    ```
+  </Tab>
+</Tabs>
+
+## Taking Action on Offers
+
+The modal footer provides several action buttons:
+
+### Contact Options
+
+<AccordionGroup>
+  <Accordion title="WhatsApp Contact">
+    Direct messaging with the fixer:
+    
+    ```tsx Components/Job-offers/Job-offer-modal.tsx
+    const handleWhatsAppClick = () => {
+      if (!whatsappClean) return;
+      const url = `https://wa.me/${whatsappClean}`;
+      window.open(url, '_blank');
+    };
+    ```
+    
+    - Opens WhatsApp chat in new window
+    - Uses fixer's verified phone number
+    - Enables quick communication
+  </Accordion>
+  
+  <Accordion title="Schedule Appointment">
+    Book directly on the fixer's calendar:
+    
+    ```tsx
+    const handleClickCalendar = () => {
+      const fixerId = offer.fixerId;
+      const requesterId = sessionStorage.getItem('requester_id') ?? '';
+      sessionStorage.setItem('fixer_id', fixerId);
+      sessionStorage.setItem('requester_id', requesterId);
+      sessionStorage.setItem('roluser', 'requester');
+    };
+    ```
+    
+    - Navigates to calendar view
+    - Shows fixer's availability
+    - Allows direct booking
+  </Accordion>
+  
+  <Accordion title="Request Custom Job">
+    Submit a specific job request to this fixer:
+    
+    - Opens job request modal
+    - Pre-fills fixer information
+    - Allows custom service description
+    - Only available for logged-in requesters
+    
+    ```tsx
+    const handleRequestJobClick = () => {
+      if (!isAuthenticated) {
+        router.push('/signUp');
+        return;
+      }
+      if (user?.role === 'fixer') {
+        return;
+      }
+      setIsMapModalOpen(true);
+    };
+    ```
+  </Accordion>
+  
+  <Accordion title="Share Offer">
+    Share the job offer with others:
+    
+    ```tsx
+    const handleShare = () => {
+      const url = window.location.href;
+      navigator.clipboard?.writeText(url);
+    };
+    ```
+    
+    - Copies offer URL to clipboard
+    - Can be shared via any platform
+    - Useful for getting second opinions
+  </Accordion>
+</AccordionGroup>
+
+## Filtering & Sorting Offers
+
+### Search Functionality
+
+Use the search bar to find specific offers:
+
+- Search by fixer name
+- Search by service keywords
+- Search by location
+- Search by job title
+
+```tsx app/[locale]/job-offer-list/page.tsx
+const handleSearchSubmit = useCallback(
+  (query: string) => {
+    const trimmedQuery = query.trim();
+    dispatch(setSearch(trimmedQuery));
+    dispatch(resetPagination());
+  },
+  [dispatch],
+);
+```
+
+### Advanced Filters
+
+Open the filter drawer to refine results:
+
+<Steps>
+  <Step title="Category Filter">
+    Select one or multiple service categories to narrow results.
+  </Step>
+  
+  <Step title="Location Filter">
+    Choose cities or neighborhoods to find nearby services.
+  </Step>
+  
+  <Step title="Name Range Filter">
+    Browse fixers alphabetically using letter ranges.
+  </Step>
+  
+  <Step title="Rating Filter">
+    Set minimum rating thresholds (1-5 stars).
+  </Step>
+</Steps>
+
+```tsx
+const handleFiltersApply = useCallback(
+  (appliedFilters: FilterState) => {
+    dispatch(setFilters(appliedFilters));
+    dispatch(resetPagination());
+  },
+  [dispatch],
+);
+```
+
+### Sort Options
+
+Organize offers by:
+
+- **Most Recent** - Newest offers first
+- **Oldest First** - Original listings
+- **Price: Low to High** - Budget options
+- **Price: High to Low** - Premium services
+- **Top Rated** - Best reviewed fixers
+
+## Comparing Multiple Offers
+
+When you receive multiple offers for the same job:
+
+<CardGroup cols={2}>
+  <Card title="Compare Pricing" icon="scale-balanced">
+    Review rates side-by-side to find the best value
+  </Card>
+  
+  <Card title="Check Ratings" icon="star">
+    Evaluate fixer reputation and past customer satisfaction
+  </Card>
+  
+  <Card title="Review Portfolios" icon="images">
+    Examine work samples and quality of previous jobs
+  </Card>
+  
+  <Card title="Read Reviews" icon="comments">
+    See what other requesters said about their experience
+  </Card>
+</CardGroup>
+
+## Accepting an Offer
+
+To accept an offer:
+
+<Steps>
+  <Step title="Review Details">
+    Carefully read all offer terms, pricing, and conditions.
+  </Step>
+  
+  <Step title="Contact Fixer">
+    Use WhatsApp to discuss any questions or clarifications.
+  </Step>
+  
+  <Step title="Schedule Appointment">
+    Book a time slot on the fixer's calendar.
+  </Step>
+  
+  <Step title="Confirm Details">
+    Verify location, timing, and final pricing before confirming.
+  </Step>
+</Steps>
+
+<Warning>
+  Once you schedule an appointment, the fixer reserves that time for you. Be sure to attend or cancel in advance.
+</Warning>
+
+## Offer Status States
+
+Offers can have different states:
+
+```tsx app/components/fixers/RequestedJob.tsx
+function getStateBadgeClasses(state: string) {
+  switch (state) {
+    case 'accepted':
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    case 'pending':
+      return 'bg-amber-50 text-amber-700 border-amber-200';
+    case 'rejected':
+      return 'bg-rose-50 text-rose-700 border-rose-200';
+    case 'completed':
+      return 'bg-blue-50 text-blue-700 border-blue-200';
+    default:
+      return 'bg-gray-50 text-gray-700 border-gray-200';
+  }
+}
+```
+
+<Info>
+  You'll receive notifications when:
+  - New offers arrive
+  - Fixers update their proposals
+  - Appointments are confirmed
+  - Jobs are completed
+</Info>
+
+## Best Practices
+
+<Steps>
+  <Step title="Respond Promptly">
+    Reply to offers quickly to secure preferred time slots
+  </Step>
+  
+  <Step title="Ask Questions">
+    Use WhatsApp to clarify any uncertainties before accepting
+  </Step>
+  
+  <Step title="Check Reviews">
+    Always review fixer ratings and past customer feedback
+  </Step>
+  
+  <Step title="Verify Details">
+    Confirm location, pricing, and scope before scheduling
+  </Step>
+  
+  <Step title="Save Offers">
+    Bookmark offers you're considering for easy comparison
+  </Step>
+</Steps>
+
+## Next Steps
+
+After accepting an offer:
+
+1. [Schedule the appointment](/requesters/scheduling-appointments)
+2. [Track job progress](/requesters/tracking-jobs)
+3. [Rate and review](/requesters/rating-fixers) after completion

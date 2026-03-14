@@ -1,0 +1,503 @@
+---
+title: 'Internationalization (i18n)'
+description: 'Multi-language support with next-intl for English and Spanish'
+---
+
+## Overview
+
+Servineo supports multiple languages using `next-intl`, providing a seamless bilingual experience for English and Spanish speakers. The i18n system covers all user-facing content including UI labels, validation messages, and dynamic content.
+
+## Configuration
+
+### Routing Setup
+
+Language routing is configured in `src/i18n/routing.ts`:
+
+```tsx title="src/i18n/routing.ts"
+import { defineRouting } from 'next-intl/routing';
+
+export const routing = defineRouting({
+  // A list of all locales that are supported
+  locales: ['en', 'es'],
+  // Used when no locale matches
+  defaultLocale: 'en',
+});
+```
+
+### Middleware
+
+Automatic locale detection and routing via middleware:
+
+```tsx title="src/middleware.ts"
+import createMiddleware from 'next-intl/middleware';
+import { routing } from './i18n/routing';
+
+export default createMiddleware({
+  locales: routing.locales,
+  defaultLocale: routing.defaultLocale,
+  localeDetection: true,
+  localeCookie: true,
+});
+
+export const config = {
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+};
+```
+
+**Features:**
+
+- **Automatic locale detection** from browser settings
+- **Locale cookie** to persist user preference
+- **Path-based routing** (e.g., `/en/job-offers`, `/es/ofertas`)
+- **Static file exclusion** for optimal performance
+
+## Translation Files
+
+Translation messages are stored in JSON files:
+
+```
+messages/
+├── en.json    # English translations
+└── es.json    # Spanish translations
+```
+
+### Translation Structure
+
+Translations are organized by feature/component:
+
+```json title="messages/en.json (excerpt)"
+{
+  "search": {
+    "placeholder": "What service do you need?",
+    "buttonSearch": "Search",
+    "clearSearch": "Clear search",
+    "recentSearches": "Recent searches",
+    "suggestions": "Suggestions",
+    "titleOnly": "Search only in job title",
+    "exactWords": "Exact words"
+  },
+  "filtersPanel": {
+    "filters": "Filters",
+    "resetButton": {
+      "desktop": "Reset",
+      "mobile": "Reset Filters"
+    },
+    "fixerName": "Fixer Name",
+    "city": "City",
+    "jobCategory": "Job Type"
+  },
+  "advancedSearch": {
+    "pageTitle": "Advanced Search",
+    "resultsCounter": {
+      "loading": "Loading...",
+      "results": "results",
+      "noResults": "No results found"
+    },
+    "fixerName": {
+      "label": "Fixer Name:",
+      "placeholder": "Select Name Ranges",
+      "ranges": {
+        "ac": "From (A-C)",
+        "df": "From (D-F)",
+        "gi": "From (G-I)"
+      }
+    }
+  }
+}
+```
+
+```json title="messages/es.json (excerpt)"
+{
+  "search": {
+    "placeholder": "¿Qué servicio necesitas?",
+    "buttonSearch": "Buscar",
+    "clearSearch": "Limpiar búsqueda",
+    "recentSearches": "Búsquedas recientes",
+    "suggestions": "Sugerencias",
+    "titleOnly": "Buscar solo en el título de la Oferta de Trabajo",
+    "exactWords": "Palabras Exactas"
+  },
+  "filtersPanel": {
+    "filters": "Filtros",
+    "resetButton": {
+      "desktop": "Reiniciar",
+      "mobile": "Reiniciar Filtros"
+    },
+    "fixerName": "Nombre de Fixer",
+    "city": "Ciudad",
+    "jobCategory": "Tipo de Trabajo"
+  },
+  "advancedSearch": {
+    "pageTitle": "Búsqueda Avanzada",
+    "resultsCounter": {
+      "loading": "Cargando...",
+      "results": "resultados",
+      "noResults": "No se encontraron resultados"
+    },
+    "fixerName": {
+      "label": "Nombre de Fixer:",
+      "placeholder": "Seleccionar Rangos de Nombre",
+      "ranges": {
+        "ac": "De (A-C)",
+        "df": "De (D-F)",
+        "gi": "De (G-I)"
+      }
+    }
+  }
+}
+```
+
+## Using Translations in Components
+
+### Basic Usage
+
+Import and use the `useTranslations` hook:
+
+```tsx title="Component with translations" {1,4,7-8}
+import { useTranslations } from 'next-intl';
+
+export function FiltersPanel() {
+  const t = useTranslations('filtersPanel');
+
+  return (
+    <h2>{t('filters')}</h2>
+    <h3>{t('fixerName')}</h3>
+    <h3>{t('city')}</h3>
+    <h3>{t('jobCategory')}</h3>
+    <button>{t('resetButton.desktop')}</button>
+  );
+}
+```
+
+### Nested Keys
+
+Access nested translation keys with dot notation:
+
+```tsx
+const t = useTranslations('advancedSearch');
+
+<h1>{t('pageTitle')}</h1>
+<p>{t('resultsCounter.loading')}</p>
+<span>{t('fixerName.ranges.ac')}</span>
+```
+
+### Dynamic Content
+
+Use variables in translations:
+
+```json
+{
+  "pagination": {
+    "showingResults": "Showing {start} - {end} of {total} results"
+  }
+}
+```
+
+```tsx
+const t = useTranslations('pagination');
+
+t('showingResults', { start: 1, end: 10, total: 100 })
+// English: "Showing 1 - 10 of 100 results"
+// Spanish: "Mostrando 1 - 10 de 100 resultados"
+```
+
+### Pluralization
+
+Handle singular/plural forms:
+
+```json
+{
+  "jobOffers": {
+    "map": {
+      "availableOffers": {
+        "singular": "available offer",
+        "plural": "available offers"
+      }
+    }
+  }
+}
+```
+
+```tsx
+const t = useTranslations('jobOffers.map');
+const count = offersInRadius;
+
+{count} {count === 1 
+  ? t('availableOffers.singular') 
+  : t('availableOffers.plural')
+}
+```
+
+## Language Detection
+
+### From URL Path
+
+Detect current language from the URL:
+
+```tsx title="Detect language from pathname" {1-5}
+const currentLanguage = React.useMemo(() => {
+  const pathSegments = (pathname || '').split('/').filter(Boolean);
+  const langSegment = pathSegments[0];
+  return ['en', 'es'].includes(langSegment) ? langSegment : 'es';
+}, [pathname]);
+```
+
+### Search Suggestions by Language
+
+Pass detected language to backend API:
+
+```tsx title="Language-aware search suggestions" {6}
+const { suggestions } = useSearchSuggestions(value, {
+  enabled: value.trim().length > 0,
+  minLength: 1,
+  debounceMs: 300,
+  maxResults: 6,
+  language: currentLanguage,
+});
+```
+
+## Category Translations
+
+Job categories and cities are translated dynamically:
+
+```tsx title="Translating job categories" {2-8}
+const JOBS = DB_VALUES.jobTypes.map((dbValue, index) => ({
+  dbValue,
+  label: t(
+    `jobType.options.${
+      ['mason', 'carpenter', 'locksmith', 'decorator', 'electrician',
+       'plumber', 'fumigator', 'installer', 'gardener', 'cleaner',
+       'mechanic', 'assembler', 'painter', 'polisher', 'welder',
+       'roofer', 'glazier', 'plasterer'][index]
+    }`
+  ),
+}));
+```
+
+```json title="Job type translations"
+{
+  "advancedSearch": {
+    "jobType": {
+      "options": {
+        "mason": "Mason",        // English
+        "plumber": "Plumber",
+        "electrician": "Electrician"
+      }
+    }
+  }
+}
+```
+
+```json title="Spanish job types"
+{
+  "advancedSearch": {
+    "jobType": {
+      "options": {
+        "mason": "Albañil",      // Spanish
+        "plumber": "Fontanero",
+        "electrician": "Electricista"
+      }
+    }
+  }
+}
+```
+
+## Form Validation Messages
+
+Translate validation errors:
+
+```json title="Validation messages"
+{
+  "SignUp": {
+    "errors": {
+      "nameMinLength": "Name must be at least 2 characters",
+      "invalidEmail": "Please enter a valid email",
+      "passwordMinLength": "Password must be at least 6 characters",
+      "passwordsMatch": "Passwords do not match"
+    }
+  }
+}
+```
+
+```tsx title="Using validation messages"
+const t = useTranslations('SignUp.errors');
+
+if (name.length < 2) {
+  setError(t('nameMinLength'));
+}
+```
+
+## Calendar Localization
+
+Translate month and day names:
+
+```json title="Calendar translations"
+{
+  "calendar": {
+    "months": {
+      "january": "January",
+      "february": "February",
+      "march": "March"
+    },
+    "daysShort": {
+      "monday": "M",
+      "tuesday": "T",
+      "wednesday": "W"
+    },
+    "buttons": {
+      "cancel": "Cancel",
+      "accept": "Accept"
+    }
+  }
+}
+```
+
+## Navigation Links
+
+Translate navigation elements:
+
+```json title="Navigation translations"
+{
+  "navbar": {
+    "logo": "Logo",
+    "jobOffers": "Job Offers",
+    "becomeFixer": "Become a Fixer",
+    "myOffers": "My Offers"
+  },
+  "TopMenu": {
+    "buttons": {
+      "login": "Log In",
+      "register": "Sign Up",
+      "myAccount": "My Account"
+    }
+  }
+}
+```
+
+## Error Messages
+
+Provide localized error feedback:
+
+```json title="Error message translations"
+{
+  "myOffers": {
+    "notifications": {
+      "error": {
+        "title": "Error",
+        "deleteMessage": "Could not delete the offer. Please try again.",
+        "formMessage": "There was an error processing the form."
+      }
+    }
+  }
+}
+```
+
+## Accessibility Labels
+
+Translate ARIA labels for screen readers:
+
+```json title="ARIA label translations"
+{
+  "footer": {
+    "ariaLabels": {
+      "footer": "Servineo footer",
+      "footerLinks": "Footer links",
+      "viewLocation": "View location on Google Maps",
+      "sendWhatsApp": "Send WhatsApp message to +591 75139742",
+      "facebook": "Visit Servineo Facebook",
+      "instagram": "Visit Servineo Instagram"
+    }
+  }
+}
+```
+
+## Best Practices
+
+1. **Use semantic keys** - Organize by feature/component
+2. **Avoid hardcoded strings** - Always use translation keys
+3. **Keep translations in sync** - Ensure all locales have matching keys
+4. **Use descriptive key names** - Make purpose clear
+5. **Support pluralization** - Provide singular/plural variants
+6. **Include context** - Add comments for translators when needed
+7. **Handle missing translations** - Provide fallbacks
+8. **Test both languages** - Verify layout works for all locales
+9. **Use variables** - For dynamic content insertion
+10. **Translate accessibility** - Include ARIA labels and alt text
+
+## Common Translation Patterns
+
+### Button Labels
+
+```json
+{
+  "buttons": {
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit"
+  }
+}
+```
+
+### Loading States
+
+```json
+{
+  "loading": {
+    "default": "Loading...",
+    "profile": "Loading profile data...",
+    "offers": "Loading offers..."
+  }
+}
+```
+
+### Empty States
+
+```json
+{
+  "emptyState": {
+    "title": "No items found",
+    "description": "Try adjusting your filters"
+  }
+}
+```
+
+## Language Switcher
+
+Implement a language switcher component:
+
+```tsx title="Simple language switcher"
+import { useRouter, usePathname } from 'next/navigation';
+
+export function LanguageSwitcher() {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const switchLanguage = (locale: 'en' | 'es') => {
+    const segments = pathname.split('/');
+    segments[1] = locale;
+    router.push(segments.join('/'));
+  };
+
+  return (
+    <div>
+      <button onClick={() => switchLanguage('en')}>English</button>
+      <button onClick={() => switchLanguage('es')}>Español</button>
+    </div>
+  );
+}
+```
+
+## Performance Tips
+
+1. **Lazy load translations** - Only load needed namespaces
+2. **Cache translations** - Use built-in next-intl caching
+3. **Avoid large files** - Split translations by route/feature
+4. **Preload common strings** - Load frequently used translations early
+
+## Related Features
+
+- [Search and Filters](/features/search-and-filters) - Localized search interface
+- [Advanced Search](/features/advanced-search) - Translated filter labels
+- [Map Integration](/features/map-integration) - Localized map UI

@@ -1,0 +1,323 @@
+---
+title: Job Marketplace
+description: How the Servineo marketplace connects requesters with fixers
+---
+
+The Servineo marketplace enables requesters to find services and fixers to offer their skills through a sophisticated job offer and request system.
+
+## Core Concepts
+
+The marketplace operates on two main flows:
+
+1. **Job Offers** - Fixers create listings for services they provide
+2. **Job Requests** - Requesters create specific job requests and hire fixers
+
+## Job Offers
+
+Fixers create job offers to advertise their services. The offer model is defined in `src/types/jobOffers.ts`:
+
+```typescript
+export interface JobOfferData {
+  _id: string;
+  fixerId: string;
+  fixerName: string;
+  fixerPhoto?: string;
+  title: string;
+  description: string;
+  category: string;
+  tags: string[];
+  price: number;
+  city: string;
+  contactPhone: string;
+  createdAt: string | Date;
+  rating?: number;
+  photos?: string[];
+  completedJobs?: number;
+  location?: string[];
+  status?: boolean;  // Active/inactive
+}
+```
+
+### Offer Properties
+
+<ParamField path="title" type="string" required>
+  Clear, concise service title (e.g., "Plumbing Repairs", "Electrical Installation")
+</ParamField>
+
+<ParamField path="description" type="string" required>
+  Detailed description of services offered, experience, and capabilities
+</ParamField>
+
+<ParamField path="category" type="string" required>
+  Service category for filtering (plumbing, electrical, carpentry, etc.)
+</ParamField>
+
+<ParamField path="tags" type="string[]" required>
+  Searchable keywords related to the service
+</ParamField>
+
+<ParamField path="price" type="number" required>
+  Base hourly rate or starting price in local currency (BOB)
+</ParamField>
+
+<ParamField path="status" type="boolean" default="true">
+  Whether the offer is active and visible in search results
+</ParamField>
+
+## Searching for Offers
+
+The `jobOffersApi` provides powerful search capabilities defined in `src/app/redux/services/jobOffersApi.ts`:
+
+```typescript
+import { useGetOffersQuery } from '@/app/redux/services/jobOffersApi';
+
+const { data } = useGetOffersQuery({
+  search: 'plumber',
+  filters: {
+    category: ['plumbing'],
+    city: ['La Paz'],
+    minPrice: 50,
+    maxPrice: 200,
+    tags: ['emergency', '24/7']
+  },
+  sortBy: 'rating',  // or 'recent', 'price'
+  page: 1,
+  limit: 10
+});
+```
+
+### Search Filters
+
+<ResponseField name="search" type="string">
+  Full-text search across title and description
+</ResponseField>
+
+<ResponseField name="filters.category" type="string[]">
+  Filter by one or more service categories
+</ResponseField>
+
+<ResponseField name="filters.city" type="string[]">
+  Filter by city/location
+</ResponseField>
+
+<ResponseField name="filters.range" type="string[]">
+  Price range filters (e.g., '0-100', '100-200')
+</ResponseField>
+
+<ResponseField name="filters.tags" type="string[]">
+  Filter by service tags
+</ResponseField>
+
+<ResponseField name="rating" type="number">
+  Minimum rating filter (1-5 stars)
+</ResponseField>
+
+<ResponseField name="sortBy" type="string">
+  Sort order: 'recent', 'rating', 'price'
+</ResponseField>
+
+## Job Requests
+
+When a requester wants to hire a fixer, they create a job request. The model is defined in `src/types/job-request.ts`:
+
+```typescript
+export interface JobRequest {
+  _id: string;
+  title: string;
+  description: string;
+  location?: {
+    type: 'Point';
+    coordinates: [string, string];  // [longitude, latitude]
+  };
+  startTime?: string;
+  endTime?: string;
+  price: number;
+  requesterId: string;
+  fixerId?: string;
+  status: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled' | 'paid';
+  createdAt: string;
+  rating?: number;
+  comment?: string;
+}
+```
+
+### Job Request Status Flow
+
+<Steps>
+  <Step title="pending">
+    Job request created, waiting for fixer to accept
+  </Step>
+  
+  <Step title="accepted">
+    Fixer has accepted the job request
+  </Step>
+  
+  <Step title="in_progress">
+    Work has started on the job
+  </Step>
+  
+  <Step title="completed">
+    Work is finished, pending payment
+  </Step>
+  
+  <Step title="paid">
+    Payment received, job fully closed
+  </Step>
+</Steps>
+
+<Note>
+  Jobs can be `cancelled` at any point before completion
+</Note>
+
+## Creating Job Requests
+
+The service layer provides methods to create job requests in `src/services/job-requests.ts`:
+
+```typescript
+import { createJobRequest } from '@/services/job-requests';
+
+const payload: CreateJobRequestPayload = {
+  title: 'Fix leaking kitchen sink',
+  description: 'Sink has been leaking for 2 days, need urgent repair',
+  location: {
+    type: 'Point',
+    coordinates: ['-68.1193', '-16.5000']  // [lng, lat]
+  },
+  startTime: '2024-03-15T09:00:00Z',
+  endTime: '2024-03-15T12:00:00Z',
+  price: 150,
+  fixerId: 'fixer-id-here',
+  requesterId: 'requester-id-here',
+  appointmentId: 'optional-appointment-id',
+  offerId: 'optional-offer-id'
+};
+
+const result = await createJobRequest(payload, authToken);
+```
+
+## Price Ranges
+
+The platform provides dynamic price range filtering based on actual offer data:
+
+```typescript
+import { useGetPriceRangesQuery } from '@/app/redux/services/jobOffersApi';
+
+const { data: priceData } = useGetPriceRangesQuery();
+
+// Returns:
+// {
+//   min: 20,
+//   max: 500,
+//   ranges: [
+//     { label: 'Bs. 0 - 100', min: 0, max: 100 },
+//     { label: 'Bs. 100 - 200', min: 100, max: 200 },
+//     { label: 'Bs. 200+', min: 200, max: null }
+//   ]
+// }
+```
+
+## Tags and Categories
+
+Dynamic tags help users discover services:
+
+```typescript
+import { useGetTagsQuery } from '@/app/redux/services/jobOffersApi';
+
+const { data: tags } = useGetTagsQuery({
+  search: 'plumb',
+  category: ['plumbing']
+});
+
+// Returns: ['plumbing', 'plumber', 'emergency plumbing', ...]
+```
+
+## Session Tracking
+
+The marketplace tracks user sessions for analytics and personalization:
+
+```typescript
+// For authenticated users
+{ userId: 'user-123' }
+
+// For anonymous users
+{ sessionId: 'anon-1234567890-5678' }
+```
+
+<Info>
+  Session tracking is automatically handled by the `jobOffersApi` service
+</Info>
+
+## Filter Counts
+
+Get counts of offers matching different filter criteria:
+
+```typescript
+import { useGetFilterCountsQuery } from '@/app/redux/services/jobOffersApi';
+
+const { data } = useGetFilterCountsQuery({
+  category: ['plumbing'],
+  city: 'La Paz'
+});
+
+// Returns:
+// {
+//   total: 45,
+//   ranges: { '0-100': 12, '100-200': 23, '200+': 10 },
+//   cities: { 'La Paz': 30, 'El Alto': 15 },
+//   categories: { 'plumbing': 45 },
+//   ratings: { '4+': 30, '3+': 42 }
+// }
+```
+
+## Recent Offers
+
+Fetch the most recent offers for the home page:
+
+```typescript
+import { useGetRecentOffersQuery } from '@/app/redux/services/jobOffersApi';
+
+const { data } = useGetRecentOffersQuery({
+  category: 'plumbing',  // optional
+  limit: 8
+});
+```
+
+## Best Practices
+
+<Warning>
+  Always validate location coordinates before creating job requests. Invalid coordinates will cause the request to fail.
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="Optimize Search" icon="magnifying-glass">
+    Use specific categories and tags to narrow results before applying price filters
+  </Card>
+  
+  <Card title="Status Management" icon="list-check">
+    Always update job status as work progresses to maintain accurate marketplace data
+  </Card>
+  
+  <Card title="Price Transparency" icon="dollar-sign">
+    Clearly communicate whether prices are hourly rates or fixed project costs
+  </Card>
+  
+  <Card title="Location Accuracy" icon="location-dot">
+    Provide accurate location data to ensure fixers can assess travel time and costs
+  </Card>
+</CardGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Users and Roles" icon="users" href="/concepts/users-and-roles">
+    Learn about requester and fixer roles
+  </Card>
+  
+  <Card title="Appointments" icon="calendar" href="/concepts/appointments">
+    Schedule appointments with fixers
+  </Card>
+  
+  <Card title="Payments" icon="credit-card" href="/concepts/payments">
+    Process payments for completed jobs
+  </Card>
+</CardGroup>

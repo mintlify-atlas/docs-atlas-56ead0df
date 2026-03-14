@@ -1,0 +1,221 @@
+---
+title: Users and Roles
+description: Understanding the dual-role system in Servineo
+---
+
+Servineo is built around a dual-role marketplace model where users can be either **Requesters** (clients seeking services) or **Fixers** (service providers), with an additional **Admin** role for platform management.
+
+## User Interface
+
+The core user model is defined in `src/types/user.ts`:
+
+```typescript
+export interface IUser {
+  _id?: string;
+  id?: string;
+  name: string;
+  email: string;
+  url_photo?: string;
+  role: 'requester' | 'fixer' | 'admin';
+
+  authProviders?: Array<{
+    provider: string;
+    providerId: string;
+    password?: string;
+  }>;
+
+  telefono?: string;
+  ubicacion?: {
+    lat?: number;
+    lng?: number;
+    direccion?: string;
+    departamento?: string;
+    pais?: string;
+  };
+}
+```
+
+## Role Types
+
+<CardGroup cols={2}>
+  <Card title="Requester" icon="user">
+    Clients who post job requests and hire fixers for services. They can:
+    - Create job requests
+    - Search for fixers and services
+    - Schedule appointments
+    - Make payments
+  </Card>
+  
+  <Card title="Fixer" icon="wrench">
+    Service providers who offer skills and respond to job requests. They can:
+    - Create job offers/listings
+    - Respond to job requests
+    - Manage appointments
+    - Receive payments
+  </Card>
+</CardGroup>
+
+## Fixer Profiles
+
+Fixers have extended profile information defined in `src/types/job-offer.ts`:
+
+```typescript
+export interface IUserProfile {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    role: 'fixer' | 'requester';
+    urlPhoto?: string;
+  };
+  profile: {
+    ci: string;
+    services: Array<{
+      id: string;
+      name: string;
+      custom?: boolean;
+    }>;
+    paymentMethods: Array<{
+      type: string;
+      accountInfo?: string;
+    }>;
+    experiences: Array<{
+      id: string;
+      title: string;
+      description: string;
+      years: number;
+    }>;
+    vehicle?: {
+      hasVehicle?: boolean;
+      type?: string;
+    };
+    status: 'pending' | 'approved' | 'rejected';
+  };
+}
+```
+
+<Note>
+Fixer profiles require approval before they can accept jobs. The `status` field tracks the approval state.
+</Note>
+
+## State Management
+
+User state is managed through Redux in `src/app/redux/slice/userSlice.ts`:
+
+```typescript
+interface UserState {
+  user: IUser | null;
+  isAuthenticated: boolean;
+  loading: boolean;
+}
+
+// Actions
+setUser(user: IUser | null)  // Set current user
+setLoading(loading: boolean)  // Update loading state
+logout()                      // Clear user session
+```
+
+## Authentication
+
+Servineo supports multiple authentication providers:
+
+- Email/Password
+- OAuth providers (Google, Facebook, etc.)
+- Multiple providers can be linked to a single account
+
+The `authProviders` array tracks all linked authentication methods:
+
+```typescript
+authProviders?: Array<{
+  provider: string;      // e.g., 'google', 'email'
+  providerId: string;    // Provider-specific user ID
+  password?: string;     // Hashed password for email auth
+}>;
+```
+
+## Location Data
+
+Users can have multiple location fields depending on their role:
+
+<AccordionGroup>
+  <Accordion title="ubicacion (General Location)">
+    The user's primary location, used for:
+    - Profile display
+    - Default job request location
+    - Fixer search radius
+  </Accordion>
+  
+  <Accordion title="workLocation (Fixer Only)">
+    The area where a fixer provides services. This can differ from their home location.
+  </Accordion>
+</AccordionGroup>
+
+## Payment Methods
+
+Users can configure multiple payment methods:
+
+```typescript
+metodoPago?: {
+  hasEfectivo?: boolean;      // Cash
+  qr?: boolean;               // QR code payment
+  tarjetaCredito?: boolean;   // Credit card
+};
+```
+
+## Vehicle Information
+
+Fixers can specify vehicle ownership, which affects their service capabilities:
+
+```typescript
+vehiculo?: {
+  hasVehiculo?: boolean;
+  tipoVehiculo?: string;  // car, motorcycle, truck, etc.
+};
+```
+
+## API Integration
+
+The `fixerApi` service provides methods to fetch user profiles:
+
+```typescript
+import { useGetFixerByIdQuery, useGetFixersQuery } from '@/app/redux/services/fixerApi';
+
+// Fetch a single fixer profile
+const { data: fixer } = useGetFixerByIdQuery(fixerId);
+
+// Fetch all fixers
+const { data: fixers } = useGetFixersQuery();
+```
+
+## Best Practices
+
+<Warning>
+  Always check the `role` field before rendering role-specific UI or allowing role-specific actions.
+</Warning>
+
+<Steps>
+  <Step title="Validate User Role">
+    Check `user.role` before showing fixer-only or requester-only features
+  </Step>
+  
+  <Step title="Handle Location Permissions">
+    Request location permissions before accessing `ubicacion` or `workLocation`
+  </Step>
+  
+  <Step title="Verify Fixer Approval">
+    For fixers, check `profile.status === 'approved'` before allowing job acceptance
+  </Step>
+</Steps>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Job Marketplace" icon="store" href="/concepts/job-marketplace">
+    Learn how fixers create offers and requesters find services
+  </Card>
+  
+  <Card title="Appointments" icon="calendar" href="/concepts/appointments">
+    Understand the appointment scheduling system
+  </Card>
+</CardGroup>

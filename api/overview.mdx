@@ -1,0 +1,131 @@
+---
+title: "API Overview"
+description: "Complete overview of Servineo's RTK Query API architecture"
+---
+
+## Architecture
+
+Servineo uses **RTK Query** (Redux Toolkit Query) for efficient data fetching and caching. The API is built on top of Redux Toolkit and provides automatic cache management, request deduplication, and optimistic updates.
+
+## Base API Configuration
+
+All API endpoints extend from a centralized base API configuration:
+
+```typescript
+// src/app/redux/services/baseApi.ts
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL + '/api';
+
+export const baseQuery = fetchBaseQuery({
+  baseUrl: API_URL,
+  prepareHeaders: (headers) => {
+    return headers;
+  },
+  credentials: 'include',
+});
+
+export const baseApi = createApi({
+  reducerPath: 'api',
+  baseQuery,
+  tagTypes: [
+    'User',
+    'Job',
+    'Statistics',
+    'JobOffer',
+    'Requester',
+    'SearchHistory',
+    'Experience',
+    'Portfolio',
+    'Certification',
+  ],
+  endpoints: () => ({}),
+});
+```
+
+<Note>
+The base API uses cookie-based authentication with `credentials: 'include'` to automatically send cookies with every request.
+</Note>
+
+## Cache Tags
+
+RTK Query uses cache tags for automatic invalidation:
+
+| Tag | Description |
+|-----|-------------|
+| `User` | User profiles and authentication data |
+| `Job` | Job offers and job-related data |
+| `Statistics` | Analytics and statistics |
+| `JobOffer` | Specific job offer details |
+| `Requester` | Service requester profiles |
+| `SearchHistory` | User search history |
+| `Experience` | Fixer work experience |
+| `Portfolio` | Fixer portfolio items |
+| `Certification` | Fixer certifications |
+
+## API Modules
+
+The API is organized into specialized modules:
+
+<CardGroup cols={2}>
+  <Card title="User API" icon="user" href="/api/user">
+    User profiles, authentication, and account management
+  </Card>
+  <Card title="Fixer API" icon="wrench" href="/api/fixer">
+    Fixer profiles and related job offers
+  </Card>
+  <Card title="Jobs API" icon="briefcase" href="/api/jobs">
+    Job offer CRUD operations and status management
+  </Card>
+  <Card title="Search API" icon="magnifying-glass" href="/api/search">
+    Search logging and filter management
+  </Card>
+</CardGroup>
+
+## Error Handling
+
+All API responses use a consistent error format:
+
+```typescript
+export interface ApiError {
+  status: number;
+  data: {
+    message: string;
+    errors?: Record<string, string[]>;
+  };
+}
+
+export const isApiError = (error: unknown): error is ApiError => {
+  return typeof error === 'object' && error !== null && 'status' in error && 'data' in error;
+};
+```
+
+### Example Error Handling
+
+```typescript
+import { isApiError } from '@/app/redux/services/baseApi';
+
+const [createJob] = useCreateJobMutation();
+
+try {
+  await createJob(jobData).unwrap();
+} catch (error) {
+  if (isApiError(error)) {
+    console.error(`Error ${error.status}: ${error.data.message}`);
+    if (error.data.errors) {
+      // Handle validation errors
+    }
+  }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/api/authentication">
+    Learn about authentication flow
+  </Card>
+  <Card title="Endpoints" icon="code" href="/api/user">
+    Explore available endpoints
+  </Card>
+</CardGroup>

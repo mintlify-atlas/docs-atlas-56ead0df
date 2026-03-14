@@ -1,0 +1,247 @@
+---
+title: 'Calendar Management'
+description: 'Manage your availability, appointments, and schedule as a Fixer'
+---
+
+## Calendar Overview
+
+The calendar system helps you manage your availability and appointments. Clients can view your calendar when booking services, and you can track upcoming jobs.
+
+## Accessing the Calendar
+
+Access your calendar from your profile:
+
+```tsx
+import { Calendar } from 'lucide-react';
+import Link from 'next/link';
+
+const handleClickCalendar = () => {
+  sessionStorage.setItem('fixer_id', fixer.id);
+  sessionStorage.setItem('requester_id', 'pupup');
+  sessionStorage.setItem('roluser', 'fixer');
+};
+
+<Link
+  href='../calendar'
+  onClick={handleClickCalendar}
+  className='px-4 py-2 bg-white text-blue-700 rounded-lg flex items-center gap-2'
+>
+  <Calendar className='w-4 h-4' />
+  Ver Calendario
+</Link>
+```
+
+Implementation: `src/Components/Fixer-profile.tsx:145`
+
+## Calendar Session Management
+
+The calendar uses session storage to maintain context:
+
+```typescript
+// Set session data before accessing calendar
+sessionStorage.setItem('fixer_id', fixer.id);
+sessionStorage.setItem('requester_id', 'pupup');
+sessionStorage.setItem('roluser', 'fixer');
+```
+
+This allows the calendar to:
+- Display the correct fixer's availability
+- Track which user is viewing the calendar
+- Differentiate between fixer and requester views
+
+Implementation: `src/Components/Fixer-profile.tsx:66`
+
+## Calendar Integration
+
+The calendar is integrated into the fixer profile page:
+
+```tsx
+{isOwner && (
+  <Link
+    href='../calendar'
+    onClick={handleClickCalendar}
+    className='mt-4 px-4 py-2 bg-white text-blue-700 rounded-lg font-medium flex items-center gap-2 hover:bg-gray-50 transition-colors'
+  >
+    <Calendar className='w-4 h-4' />
+    Ver Calendario
+  </Link>
+)}
+```
+
+Only the profile owner (the fixer themselves) sees the calendar link.
+
+Implementation: `src/Components/Fixer-profile.tsx:143`
+
+## Role-Based Calendar Access
+
+The calendar adapts based on user role:
+
+```typescript
+interface CalendarSession {
+  fixer_id: string;      // The fixer whose calendar is being viewed
+  requester_id: string;  // The user viewing the calendar
+  roluser: 'fixer' | 'requester';  // Current user's role
+}
+```
+
+### Fixer View
+
+When a fixer views their own calendar:
+- Can add/edit/delete availability blocks
+- See all booked appointments
+- Manage time slots
+- Block out unavailable times
+
+### Requester View
+
+When a client views a fixer's calendar:
+- Can only see available time slots
+- Can request appointments
+- Cannot modify fixer's schedule
+
+## Calendar Features
+
+### Availability Management
+
+Fixers can define their available hours:
+
+```typescript
+interface AvailabilitySlot {
+  dayOfWeek: number;  // 0-6 (Sunday-Saturday)
+  startTime: string;  // HH:mm format
+  endTime: string;    // HH:mm format
+  isAvailable: boolean;
+}
+```
+
+### Appointment Tracking
+
+Track scheduled appointments:
+
+```typescript
+interface Appointment {
+  id: string;
+  fixerId: string;
+  requesterId: string;
+  serviceType: string;
+  scheduledDate: Date;
+  startTime: string;
+  endTime: string;
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  notes?: string;
+}
+```
+
+### Blocked Times
+
+Mark times when you're not available:
+
+```typescript
+interface BlockedTime {
+  id: string;
+  fixerId: string;
+  startDateTime: Date;
+  endDateTime: Date;
+  reason?: string;
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Keep Calendar Updated">
+    - Update availability regularly
+    - Mark blocked times in advance
+    - Confirm appointments promptly
+    - Update status after job completion
+  </Accordion>
+
+  <Accordion title="Reasonable Availability">
+    - Offer consistent availability
+    - Account for travel time between jobs
+    - Don't overbook yourself
+    - Leave buffer time for emergencies
+  </Accordion>
+
+  <Accordion title="Clear Communication">
+    - Respond to booking requests quickly
+    - Confirm appointments in advance
+    - Notify clients of any changes
+    - Provide clear arrival time estimates
+  </Accordion>
+
+  <Accordion title="Professional Scheduling">
+    - Honor confirmed appointments
+    - Arrive on time
+    - Notify clients if running late
+    - Minimize last-minute cancellations
+  </Accordion>
+</AccordionGroup>
+
+## Integration with Job Statistics
+
+Calendar data integrates with your job statistics:
+
+```tsx
+import FixerGraficCard from '@/Components/fixer/Fixer-grafic-card';
+
+<FixerGraficCard
+  completedJobs={fixer.completedJobs ?? 0}
+  cancelledJobs={fixer.cancelledJobs ?? 0}
+  monthlyData={fixer.monthlyData}
+/>
+```
+
+Monthly data structure:
+
+```typescript
+interface MonthlyData {
+  month: string;
+  completados: number;
+  cancelados: number;
+}
+```
+
+Implementation: `src/Components/Fixer-profile.tsx:306`
+
+## Calendar Link Structure
+
+The calendar route is locale-aware:
+
+```tsx
+// From profile page
+href='../calendar'  // Relative path maintains locale
+
+// Direct navigation
+router.push('/es/calendar')  // Explicit locale
+```
+
+Calendar page location: `src/app/[locale]/calendario.tsx:1`
+
+## Tips for Effective Calendar Management
+
+<CardGroup cols={2}>
+  <Card title="Set Realistic Availability" icon="clock">
+    Only mark times you can reliably be available to avoid disappointing clients
+  </Card>
+  <Card title="Use Blocked Times" icon="ban">
+    Block out personal time, holidays, and other commitments in advance
+  </Card>
+  <Card title="Confirm Quickly" icon="check">
+    Respond to booking requests within 24 hours to maintain good ratings
+  </Card>
+  <Card title="Track Patterns" icon="chart-line">
+    Review your busiest times to optimize your availability schedule
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Building Reputation" icon="star" href="/fixers/building-reputation">
+    Learn how to grow your ratings and reviews
+  </Card>
+  <Card title="Dashboard" icon="layout-dashboard" href="/fixers/dashboard">
+    Return to your dashboard
+  </Card>
+</CardGroup>

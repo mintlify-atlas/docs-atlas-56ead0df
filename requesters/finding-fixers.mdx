@@ -1,0 +1,227 @@
+---
+title: 'Finding Fixers'
+description: 'Learn how to search, filter, and discover the right fixer for your needs'
+icon: 'magnifying-glass'
+---
+
+## Browse Job Offers
+
+The Job Offers page (`/job-offer-list`) is your central hub for discovering fixers and their service offerings.
+
+## Search & Filter Interface
+
+### Search Bar
+
+Use the search bar to find specific services, fixer names, or keywords:
+
+```tsx Components/Job-offers/SearchBar.tsx
+<SearchBar onSearch={handleSearchSubmit} />
+```
+
+The search system tracks your queries and provides relevant results based on:
+- Service descriptions
+- Fixer names
+- Service categories
+- Location data
+
+### Filter Options
+
+Click the **Filter** button to access advanced filtering:
+
+<AccordionGroup>
+  <Accordion title="Filter by Service Category">
+    Select from available service categories like:
+    - Plumbing
+    - Electrical
+    - Cleaning
+    - Carpentry
+    - And more...
+  </Accordion>
+  
+  <Accordion title="Filter by Location">
+    Choose specific cities or neighborhoods to find fixers near you.
+  </Accordion>
+  
+  <Accordion title="Filter by Fixer Name Range">
+    Browse fixers alphabetically using letter ranges (A-C, D-F, etc.).
+  </Accordion>
+  
+  <Accordion title="Filter by Rating">
+    Set minimum rating thresholds to view only highly-rated fixers.
+  </Accordion>
+</AccordionGroup>
+
+```tsx app/[locale]/job-offer-list/page.tsx
+const handleFiltersApply = useCallback(
+  (appliedFilters: FilterState) => {
+    dispatch(setFilters(appliedFilters));
+    dispatch(resetPagination());
+  },
+  [dispatch, paginaActual],
+);
+```
+
+## Viewing Results
+
+### View Modes
+
+Switch between three different view modes:
+
+<Tabs>
+  <Tab title="List View">
+    Traditional card-based layout showing job offers in a scrollable list with full details.
+  </Tab>
+  
+  <Tab title="Map View">
+    Interactive map displaying fixer locations with clickable markers for quick browsing.
+  </Tab>
+  
+  <Tab title="Grid View">
+    Compact grid layout for viewing more offers at once.
+  </Tab>
+</Tabs>
+
+```tsx Components/Job-offers/ViewModeToggle.tsx
+<ViewModeToggle
+  viewMode={viewMode}
+  onChange={handleViewModeChange}
+  variant='desktop'
+/>
+```
+
+### Sorting Options
+
+Sort job offers by:
+- **Most Recent** - Newest listings first
+- **Oldest First** - Earliest listings first
+- **Price: Low to High** - Budget-friendly options first
+- **Price: High to Low** - Premium services first
+- **Rating** - Highest rated fixers first
+
+```tsx Components/Job-offers/Sort/SortCard.tsx
+<SortCard value={sortBy} onSelect={handleSortChange} />
+```
+
+## Job Offer Cards
+
+Each job offer card displays:
+
+- **Fixer Name** - Professional service provider name
+- **Service Title** - Brief description of the service
+- **Category Badge** - Service type (e.g., Plumbing, Electrical)
+- **Location** - City or neighborhood
+- **Price** - Rate in Bolivianos (Bs)
+- **Photos** - Service images or portfolio samples
+- **Tags** - Additional service offerings
+- **Date Posted** - When the offer was created
+
+<Note>
+  Click any job offer card to view the full details in a modal dialog.
+</Note>
+
+## Job Offer Details Modal
+
+When you click a job offer, a detailed modal appears with:
+
+### Header Section
+- Large hero image
+- Service title and category
+- Location with map pin icon
+- Price prominently displayed
+
+### Content Sections
+
+<Tabs>
+  <Tab title="Description">
+    Detailed information about the service, qualifications, and what's included.
+  </Tab>
+  
+  <Tab title="Services Offered">
+    List of all services and specializations the fixer provides.
+  </Tab>
+  
+  <Tab title="Gallery">
+    Additional photos showcasing previous work and expertise.
+  </Tab>
+  
+  <Tab title="Promotions">
+    Active discounts and special offers available for this service.
+    
+    ```tsx Components/Job-offers/Job-offer-modal.tsx
+    {promotions.length > 0 && (
+      <div className='space-y-3 p-4 bg-gradient-to-r from-yellow-50 to-amber-50'>
+        <h3>Promociones Disponibles</h3>
+        {promotions.map((promo) => (
+          <div key={promo._id}>
+            <h4>{promo.title}</h4>
+            <p>{promo.description}</p>
+          </div>
+        ))}
+      </div>
+    )}
+    ```
+  </Tab>
+</Tabs>
+
+### Contact Information
+
+The modal footer provides action buttons:
+
+<CardGroup cols={2}>
+  <Card title="Contact WhatsApp" icon="whatsapp">
+    Opens WhatsApp chat with the fixer's verified phone number
+  </Card>
+  
+  <Card title="Schedule Appointment" icon="calendar">
+    View fixer's calendar and book available time slots
+  </Card>
+  
+  <Card title="Share" icon="share">
+    Copy link to share this job offer with others
+  </Card>
+  
+  <Card title="Request Job" icon="briefcase">
+    Submit a custom job request to this fixer
+  </Card>
+</CardGroup>
+
+```tsx Components/Job-offers/Job-offer-modal.tsx
+const handleRequestJobClick = () => {
+  if (!isAuthenticated) {
+    router.push('/signUp');
+    return;
+  }
+  if (user?.role === 'fixer') {
+    return;
+  }
+  setIsMapModalOpen(true);
+};
+```
+
+## Pagination
+
+Browse through results using:
+- **Page Numbers** - Jump to specific pages
+- **Next/Previous** - Navigate sequentially
+- **Results Per Page** - Choose 10, 25, 50, or 100 items per page
+
+```tsx Components/Job-offers/Paginacion.tsx
+<Paginacion
+  paginaActual={paginaActual}
+  registrosPorPagina={registrosPorPagina}
+  totalRegistros={total}
+  onChange={handlePageChange}
+/>
+```
+
+<Info>
+  The search and filter settings are preserved in the URL, allowing you to bookmark or share specific search results.
+</Info>
+
+## Next Steps
+
+Once you've found a fixer you're interested in:
+
+1. [Create a job request](/requesters/creating-job-requests) with your specific needs
+2. [Schedule an appointment](/requesters/scheduling-appointments) if you want to book directly
+3. Review [job offers](/requesters/job-offers) that fixers send you

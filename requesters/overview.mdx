@@ -1,0 +1,100 @@
+---
+title: 'Requester Overview'
+description: 'Learn how Servineo helps you find and hire skilled fixers for your service needs'
+icon: 'user'
+---
+
+## Welcome to Servineo for Requesters
+
+Servineo connects you with verified, skilled fixers in your area who can help with a wide range of services. Whether you need plumbing, electrical work, cleaning, or any other service, Servineo makes it easy to find, hire, and manage service providers.
+
+## How It Works
+
+<Steps>
+  <Step title="Browse Fixers">
+    Search and filter through hundreds of verified fixers based on location, service type, ratings, and availability.
+  </Step>
+  
+  <Step title="Review Profiles">
+    View detailed fixer profiles including:
+    - Service offerings and specializations
+    - Pricing and rate information
+    - Customer ratings and reviews
+    - Photos of previous work
+    - Available promotions and discounts
+  </Step>
+  
+  <Step title="Create Job Requests">
+    Submit job requests with:
+    - Job description and requirements
+    - Preferred time slots
+    - Location details
+    - Suggested budget
+  </Step>
+  
+  <Step title="Receive Offers">
+    Fixers respond to your request with detailed job offers including pricing and availability.
+  </Step>
+  
+  <Step title="Schedule & Track">
+    Accept offers, schedule appointments, and track job progress in real-time.
+  </Step>
+  
+  <Step title="Rate & Review">
+    After job completion, rate your experience and help other requesters make informed decisions.
+  </Step>
+</Steps>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Smart Search" icon="magnifying-glass">
+    Advanced filtering by service type, location, price range, and fixer ratings
+  </Card>
+  
+  <Card title="Job Offers" icon="handshake">
+    Receive and compare multiple offers from qualified fixers
+  </Card>
+  
+  <Card title="Scheduling" icon="calendar">
+    View fixer availability and book appointments that fit your schedule
+  </Card>
+  
+  <Card title="Job Tracking" icon="list-check">
+    Monitor job status from request to completion
+  </Card>
+  
+  <Card title="Secure Messaging" icon="messages">
+    Communicate directly with fixers via WhatsApp integration
+  </Card>
+  
+  <Card title="Ratings System" icon="star">
+    Review and rate completed jobs to help the community
+  </Card>
+</CardGroup>
+
+## User Roles
+
+Servineo allows you to switch between requester and fixer roles if you're registered as both. The platform automatically adapts the interface based on your current role.
+
+```tsx Components/calendar/page.tsx
+const switchRole = () => {
+  setUserRole((prevRole) => (prevRole === 'requester' ? 'fixer' : 'requester'));
+};
+```
+
+## Getting Started
+
+Ready to find your next fixer? Start by:
+
+1. [Browsing available fixers](/requesters/finding-fixers) in your area
+2. [Creating your first job request](/requesters/creating-job-requests)
+3. Learning how to [manage job offers](/requesters/job-offers)
+
+<Note>
+  All fixers on Servineo are verified and rated by the community. You can view ratings, reviews, and past work samples before making a decision.
+</Note>
+
+## Support
+
+Need help? Check out the [Getting Started](/quickstart) guide or explore the [Features](/features/search-and-filters) documentation.

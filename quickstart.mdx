@@ -1,80 +1,276 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get Servineo running locally in under 5 minutes
 ---
 
-## Get started in three steps
+<Note>
+  This guide will help you clone the repository, install dependencies, configure environment variables, and run your first service request on the Servineo platform.
+</Note>
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, ensure you have the following installed:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+- **Node.js** 20.x or higher
+- **npm** 11.x or higher (comes with Node.js)
+- **Git** for cloning the repository
 
-### Step 2: Deploy your changes
+## Quick Setup
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+<Steps>
+  <Step title="Clone the repository">
+    Clone the Servineo frontend repository to your local machine:
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+    ```bash
+    git clone <repository-url>
+    cd servineo-frontend
+    ```
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Install dependencies">
+    Install all required packages using npm:
 
-### Step 3: Go live
+    ```bash
+    npm install
+    ```
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    This will install key dependencies including:
+    - **Next.js 15.5.4** - React framework with App Router
+    - **React 19.1.0** - UI library
+    - **Redux Toolkit 2.10.1** - State management
+    - **TypeScript 5.9.3** - Type safety
+    - **Tailwind CSS 4.1.17** - Styling
+  </Step>
 
-## Next steps
+  <Step title="Configure environment variables">
+    Create a `.env.local` file in the root directory with the following variables:
 
-Now that you have your docs running, explore these key features:
+    ```bash .env.local
+    # API Configuration
+    NEXT_PUBLIC_API_URL=http://localhost:3000
+    NEXT_PUBLIC_BACKEND=http://127.0.0.1:8000
+    NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api
+
+    # Optional: Google OAuth (for social login)
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
+
+    # Optional: Google reCAPTCHA
+    NEXT_PUBLIC_RECAPTCHA_SITE_KEY=your_recaptcha_site_key
+    ```
+
+    <Warning>
+      The backend API is configured to run on port 8000. Make sure your backend service is running or update the URLs to match your backend configuration.
+    </Warning>
+  </Step>
+
+  <Step title="Start the development server">
+    Run the development server with Turbopack for faster builds:
+
+    ```bash
+    npm run dev
+    ```
+
+    The application will start at [http://localhost:3000](http://localhost:3000)
+
+    <Note>
+      Servineo uses Next.js with Turbopack enabled for improved development performance. The server runs on port 3000 by default.
+    </Note>
+  </Step>
+
+  <Step title="Explore the platform">
+    Open your browser and navigate to `http://localhost:3000`. You'll see the Servineo home page with:
+
+    - **Hero Section** - Platform introduction
+    - **Services Section** - Browse available service categories
+    - **Map Section** - Find nearby fixers
+    - **How It Works** - Platform explanation
+
+    The home page is located at `src/app/[locale]/page.tsx:23`
+  </Step>
+</Steps>
+
+## Your First Service Request
+
+Now that Servineo is running, let's create your first service request:
+
+<Steps>
+  <Step title="Sign up as a requester">
+    1. Click "Sign Up" in the navigation menu
+    2. Choose to register as a **Requester** (someone who needs services)
+    3. Fill in your details or use Google OAuth
+    4. Accept the terms and conditions
+
+    The signup flow is located in `src/app/[locale]/signUp/`
+  </Step>
+
+  <Step title="Browse services">
+    After logging in, browse available services:
+    - Plumbing (Gasfitería)
+    - Electrical work (Electricistas)
+    - Carpentry (Carpintería)
+    - Cleaning (Limpieza)
+    - And many more...
+
+    Service images are available in the `public/` directory.
+  </Step>
+
+  <Step title="Create a job request">
+    1. Navigate to "Ask for Help" or click on a service category
+    2. Fill out the job request form with:
+       - Service type
+       - Description of work needed
+       - Location
+       - Preferred date and time
+    3. Submit your request
+
+    The job request form is at `src/app/[locale]/ask-for-help/`
+  </Step>
+
+  <Step title="View job offers">
+    Once your request is posted, fixers can submit offers. View them at:
+    - Navigate to "Job Offers" in your dashboard
+    - Review fixer profiles, ratings, and pricing
+    - Accept an offer to proceed
+
+    Job offers are managed in `src/app/[locale]/job-offer-list/`
+  </Step>
+</Steps>
+
+## Understanding the User State
+
+Servineo uses Redux Toolkit for state management. Access the current user throughout the app:
+
+```tsx
+import { useSelector } from 'react-redux';
+import { IUser } from '@/types/user';
+
+interface RootState {
+  user: {
+    user: IUser | null;
+    loading: boolean;
+    isAuthenticated: boolean;
+  };
+}
+
+function MyComponent() {
+  const { user, loading } = useSelector((state: RootState) => state.user);
+  
+  if (loading) return <div>Loading...</div>;
+  
+  const isFixer = user?.role === 'fixer';
+  const isRequester = user?.role === 'requester';
+  
+  return (
+    <div>
+      <h1>Welcome, {user?.name}</h1>
+      <p>Role: {user?.role}</p>
+    </div>
+  );
+}
+```
+
+The Redux store is configured in `src/app/redux/store.ts:12`
+
+## Available Scripts
+
+<CodeGroup>
+```bash Development
+npm run dev
+# Starts development server with Turbopack on port 3000
+```
+
+```bash Build
+npm run build
+# Creates optimized production build with Turbopack
+```
+
+```bash Production
+npm start
+# Runs the production build
+```
+
+```bash Lint
+npm run lint
+# Runs ESLint to check code quality
+```
+
+```bash Format
+npm run format
+# Formats code with Prettier
+```
+</CodeGroup>
+
+## Multi-language Support
+
+Servineo supports English and Spanish out of the box:
+
+- **English**: `http://localhost:3000/en`
+- **Spanish**: `http://localhost:3000/es`
+
+Translations are managed with `next-intl` and stored in `messages/en.json` and `messages/es.json`.
+
+```tsx
+import { useTranslations } from 'next-intl';
+
+function MyComponent() {
+  const t = useTranslations('home');
+  
+  return <h1>{t('title')}</h1>;
+}
+```
+
+## Next Steps
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Installation Guide" icon="gear" href="/installation">
+    Deep dive into dependencies, configuration, and environment setup
+  </Card>
+  <Card title="Core Concepts" icon="sitemap" href="/concepts/users-and-roles">
+    Understand users, roles, and the marketplace structure
+  </Card>
+  <Card title="API Reference" icon="plug" href="/api/overview">
+    Learn how to work with the backend API
+  </Card>
+  <Card title="Authentication" icon="lock" href="/features/authentication">
+    Implement user authentication and authorization
+  </Card>
 </CardGroup>
 
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Port 3000 is already in use">
+    If port 3000 is occupied, you can specify a different port:
+    
+    ```bash
+    npm run dev -- --port 3001
+    ```
+    
+    Or modify the script in `package.json:6`
+  </Accordion>
+
+  <Accordion title="API connection errors">
+    Ensure your backend API is running on port 8000. The Next.js config proxies `/api` requests to `http://127.0.0.1:8000/api` (see `next.config.ts:82`).
+    
+    If your backend runs on a different port, update the rewrite configuration.
+  </Accordion>
+
+  <Accordion title="Module not found errors">
+    Clear your node_modules and reinstall:
+    
+    ```bash
+    rm -rf node_modules package-lock.json
+    npm install
+    ```
+  </Accordion>
+
+  <Accordion title="Environment variables not loading">
+    - Ensure `.env.local` is in the root directory
+    - Restart the dev server after changing environment variables
+    - Variables must be prefixed with `NEXT_PUBLIC_` to be accessible in browser
+  </Accordion>
+</AccordionGroup>
+
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Need help? Check out the [Installation](/installation) guide for more detailed setup instructions.
 </Note>

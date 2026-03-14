@@ -1,0 +1,606 @@
+---
+title: Installation
+description: Complete guide to setting up your Servineo development environment
+---
+
+<Note>
+  This guide covers detailed installation steps, dependency explanations, environment configuration, and project structure for the Servineo marketplace platform.
+</Note>
+
+## System Requirements
+
+### Required Software
+
+- **Node.js**: Version 20.x or higher
+- **npm**: Version 11.x or higher (included with Node.js)
+- **Git**: For version control
+- **Code Editor**: VS Code recommended with TypeScript support
+
+### Recommended System Specs
+
+- **RAM**: 8GB minimum, 16GB recommended
+- **Disk Space**: 2GB for dependencies and build artifacts
+- **OS**: Windows 10+, macOS 10.15+, or Linux (Ubuntu 20.04+)
+
+## Installation Steps
+
+<Steps>
+  <Step title="Verify Node.js installation">
+    Check that you have the correct Node.js version:
+
+    ```bash
+    node --version
+    # Should output v20.x.x or higher
+
+    npm --version
+    # Should output 11.x.x or higher
+    ```
+
+    If you need to install or update Node.js, download it from [nodejs.org](https://nodejs.org/)
+
+    <Tip>
+      Consider using [nvm](https://github.com/nvm-sh/nvm) (Node Version Manager) to manage multiple Node.js versions.
+    </Tip>
+  </Step>
+
+  <Step title="Clone the repository">
+    Clone the Servineo frontend repository:
+
+    ```bash
+    git clone <repository-url>
+    cd servineo-frontend
+    ```
+
+    Verify the project structure:
+
+    ```bash
+    ls -la
+    # You should see: src/, public/, package.json, next.config.ts, etc.
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    Install all npm packages:
+
+    ```bash
+    npm install
+    ```
+
+    This installs 66 dependencies and 91 dev dependencies defined in `package.json`.
+
+    <Warning>
+      The installation may take 2-5 minutes depending on your internet connection and system performance.
+    </Warning>
+  </Step>
+
+  <Step title="Configure environment variables">
+    Create a `.env.local` file in the project root:
+
+    ```bash
+    touch .env.local
+    ```
+
+    Add the required environment variables (see [Environment Variables](#environment-variables) section below).
+  </Step>
+
+  <Step title="Verify installation">
+    Start the development server to verify everything is set up correctly:
+
+    ```bash
+    npm run dev
+    ```
+
+    If successful, you'll see:
+    ```
+    ▲ Next.js 15.5.4
+    - Local:        http://localhost:3000
+    - Ready in 2.5s
+    ```
+
+    Open [http://localhost:3000](http://localhost:3000) in your browser.
+  </Step>
+</Steps>
+
+## Project Structure
+
+Understanding the Servineo codebase structure:
+
+```
+servineo-frontend/
+├── src/
+│   ├── app/
+│   │   ├── [locale]/              # Internationalized routes
+│   │   │   ├── page.tsx           # Home page component
+│   │   │   ├── layout.tsx         # Root layout with providers
+│   │   │   ├── ask-for-help/      # Job request creation
+│   │   │   ├── fixer/             # Fixer profile pages
+│   │   │   ├── job-offer-list/    # Job offers management
+│   │   │   ├── login/             # Authentication
+│   │   │   ├── signUp/            # User registration
+│   │   │   ├── profile/           # User profiles
+│   │   │   └── ...                # Other feature routes
+│   │   ├── components/            # Shared UI components
+│   │   ├── redux/                 # State management
+│   │   │   ├── store.ts           # Redux store configuration
+│   │   │   ├── ReduxProvider.tsx  # Redux context provider
+│   │   │   ├── services/          # RTK Query API services
+│   │   │   └── slice/             # Redux slices
+│   │   ├── lib/                   # Utility functions
+│   │   ├── globals.css            # Global styles
+│   │   ├── fonts.ts               # Font configurations
+│   │   └── providers.tsx          # App-wide providers
+│   ├── Components/                # Feature components
+│   │   ├── Home/                  # Landing page sections
+│   │   ├── Navigation/            # TopMenu, Footer
+│   │   ├── appointments/          # Calendar & scheduling
+│   │   ├── ask_for_help/          # Job request forms
+│   │   └── ...                    # Other features
+│   ├── i18n/                      # Internationalization config
+│   │   ├── request.ts             # next-intl configuration
+│   │   └── routing.ts             # Locale routing
+│   ├── types/                     # TypeScript type definitions
+│   │   ├── user.ts                # User interfaces
+│   │   ├── job-offer.ts           # Job offer types
+│   │   ├── job-request.ts         # Job request types
+│   │   └── ...                    # Other type definitions
+│   └── ...
+├── public/                        # Static assets
+│   ├── icons/                     # Icon files
+│   ├── img/                       # Images
+│   ├── Electricistas.webp         # Service category images
+│   ├── Gasfiteria.png
+│   └── ...                        # Other service images
+├── messages/                      # i18n translation files
+│   ├── en.json                    # English translations
+│   └── es.json                    # Spanish translations
+├── next.config.ts                 # Next.js configuration
+├── tailwind.config.js             # Tailwind CSS config
+├── tsconfig.json                  # TypeScript configuration
+└── package.json                   # Dependencies and scripts
+```
+
+## Core Dependencies
+
+### Framework & Core
+
+<CodeGroup>
+```json Next.js & React
+{
+  "next": "15.5.4",           // React framework with App Router
+  "react": "19.1.0",          // UI library
+  "react-dom": "19.1.0",      // React DOM renderer
+  "typescript": "5.9.3"       // Type safety
+}
+```
+
+```json State Management
+{
+  "@reduxjs/toolkit": "2.10.1",  // State management
+  "react-redux": "9.2.0",         // React bindings for Redux
+  "redux-logger": "3.0.6"         // Redux debugging
+}
+```
+
+```json Styling & UI
+{
+  "tailwindcss": "4.1.17",         // Utility-first CSS
+  "@tailwindcss/postcss": "4.1.14",
+  "@mui/material": "7.3.4",        // Material-UI components
+  "@emotion/react": "11.14.0",     // CSS-in-JS
+  "framer-motion": "12.23.24",     // Animations
+  "lucide-react": "0.546.0"        // Icon library
+}
+```
+
+```json Forms & Validation
+{
+  "@hookform/resolvers": "5.2.2",  // Form validation
+  "zod": "4.1.12"                  // Schema validation
+}
+```
+</CodeGroup>
+
+### Feature-Specific Dependencies
+
+<Tabs>
+  <Tab title="Maps & Location">
+    ```json
+    {
+      "leaflet": "1.9.4",
+      "react-leaflet": "5.0.0",
+      "leaflet-defaulticon-compatibility": "0.1.2"
+    }
+    ```
+    Used for displaying fixer locations and service areas on interactive maps.
+  </Tab>
+
+  <Tab title="Authentication">
+    ```json
+    {
+      "@react-oauth/google": "0.12.2",
+      "jwt-decode": "4.0.0",
+      "react-google-recaptcha": "3.1.0"
+    }
+    ```
+    Handles Google OAuth login and JWT token management.
+  </Tab>
+
+  <Tab title="Payments">
+    ```json
+    {
+      "@stripe/react-stripe-js": "5.4.1",
+      "@stripe/stripe-js": "8.5.3"
+    }
+    ```
+    Stripe integration for processing payments.
+  </Tab>
+
+  <Tab title="Internationalization">
+    ```json
+    {
+      "next-intl": "4.5.5",
+      "i18next": "25.7.1"
+    }
+    ```
+    Multi-language support (English/Spanish).
+  </Tab>
+
+  <Tab title="Date & Calendar">
+    ```json
+    {
+      "@mui/x-date-pickers": "8.14.0",
+      "react-big-calendar": "1.19.4",
+      "date-fns": "4.1.0"
+    }
+    ```
+    Appointment scheduling and date handling.
+  </Tab>
+
+  <Tab title="Utilities">
+    ```json
+    {
+      "axios": "1.13.2",        // HTTP client
+      "qrcode.react": "4.2.0",  // QR code generation
+      "jspdf": "3.0.4",         // PDF generation
+      "sonner": "2.0.7"         // Toast notifications
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Environment Variables
+
+Create a `.env.local` file with the following configuration:
+
+```bash .env.local
+# ============================================
+# API Configuration
+# ============================================
+# Base URL for the Next.js app
+NEXT_PUBLIC_API_URL=http://localhost:3000
+
+# Backend API server (runs on port 8000)
+NEXT_PUBLIC_BACKEND=http://127.0.0.1:8000
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api
+
+# ============================================
+# Authentication (Google OAuth)
+# ============================================
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id_here
+
+# Get your Google Client ID from:
+# https://console.cloud.google.com/apis/credentials
+
+# ============================================
+# Security (reCAPTCHA)
+# ============================================
+NEXT_PUBLIC_RECAPTCHA_SITE_KEY=your_recaptcha_site_key_here
+
+# Get your reCAPTCHA keys from:
+# https://www.google.com/recaptcha/admin
+
+# ============================================
+# Payments (Stripe) - Optional
+# ============================================
+# NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+
+# ============================================
+# Environment
+# ============================================
+NODE_ENV=development
+```
+
+<Warning>
+  **Important Security Notes:**
+  - Never commit `.env.local` to version control
+  - Only variables prefixed with `NEXT_PUBLIC_` are exposed to the browser
+  - Keep sensitive keys (API secrets, private keys) on the server side only
+  - Use different keys for development and production environments
+</Warning>
+
+### API Proxy Configuration
+
+Servineo uses Next.js rewrites to proxy API requests to the backend. This is configured in `next.config.ts:82`:
+
+```typescript next.config.ts
+async rewrites() {
+  return [
+    {
+      source: '/api/:path*',
+      destination: 'http://127.0.0.1:8000/api/:path*',
+    },
+  ];
+}
+```
+
+This means:
+- Frontend requests to `/api/users` are proxied to `http://127.0.0.1:8000/api/users`
+- Avoids CORS issues during development
+- Keeps the backend URL hidden from the client
+
+## Redux Store Configuration
+
+Servineo uses Redux Toolkit for state management. The store is configured in `src/app/redux/store.ts`:
+
+```typescript src/app/redux/store.ts
+import { configureStore } from '@reduxjs/toolkit';
+import { setupListeners } from '@reduxjs/toolkit/query';
+import { baseApi } from './services/baseApi';
+import userReducer from './slice/userSlice';
+import fixerReducer from './slice/fixerSlice';
+import filterReducer from './slice/filterSlice';
+import jobOffersReducer from './slice/jobOffersSlice';
+import jobOfertReducer from './slice/jobOfert';
+import fixersByJobReducer from './slice/fixersByJobSlice';
+import logger from 'redux-logger';
+
+export const store = configureStore({
+  reducer: {
+    [baseApi.reducerPath]: baseApi.reducer,
+    user: userReducer,
+    fixer: fixerReducer,
+    filters: filterReducer,
+    jobOffers: jobOffersReducer,
+    jobOfert: jobOfertReducer,
+    fixersByJob: fixersByJobReducer,
+  },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware()
+      .concat(baseApi.middleware)
+      .concat(logger),
+  devTools: process.env.NODE_ENV !== 'production',
+});
+
+setupListeners(store.dispatch);
+
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
+```
+
+### Store Slices
+
+- **user**: Current user authentication and profile data
+- **fixer**: Fixer-specific data and profiles
+- **filters**: Search and filter state
+- **jobOffers**: Job offers from fixers
+- **jobOfert**: Individual job request details
+- **fixersByJob**: Fixers associated with specific jobs
+- **baseApi**: RTK Query API endpoints
+
+## Next.js Configuration
+
+Key configurations in `next.config.ts:7`:
+
+```typescript next.config.ts
+const nextConfig: NextConfig = {
+  // Emergency build settings (remove in production)
+  eslint: {
+    ignoreDuringBuilds: true,  // Skip ESLint errors during build
+  },
+  typescript: {
+    ignoreBuildErrors: true,    // Skip TypeScript errors during build
+  },
+  
+  // Turbopack configuration
+  turbopack: {
+    root: __dirname,
+  },
+  
+  // Image optimization
+  images: {
+    unoptimized: true,
+    remotePatterns: [
+      { protocol: 'https', hostname: '**' },
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+      // ... other image hosts
+    ],
+  },
+  
+  // API proxy (see above)
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://127.0.0.1:8000/api/:path*',
+      },
+    ];
+  },
+};
+```
+
+<Warning>
+  The configuration currently ignores ESLint and TypeScript errors during builds. This should be removed in production after fixing all errors.
+</Warning>
+
+## Internationalization Setup
+
+Servineo supports English and Spanish using `next-intl`:
+
+### Locale Configuration
+
+Translation files are located in `messages/`:
+- `messages/en.json` - English translations (44KB)
+- `messages/es.json` - Spanish translations (48KB)
+
+### Using Translations
+
+```tsx
+import { useTranslations } from 'next-intl';
+
+function MyComponent() {
+  const t = useTranslations('home');
+  
+  return (
+    <div>
+      <h1>{t('title')}</h1>
+      <p>{t('description')}</p>
+    </div>
+  );
+}
+```
+
+### Locale Routes
+
+All routes are prefixed with locale:
+- `/en/ask-for-help` - English version
+- `/es/ask-for-help` - Spanish version
+
+The locale is configured in `src/i18n/request.ts:1`
+
+## Available Scripts
+
+Defined in `package.json:5`:
+
+<CodeGroup>
+```bash Development Server
+npm run dev
+# Starts Next.js dev server with Turbopack on port 3000
+# Hot reloading enabled for instant feedback
+```
+
+```bash Production Build
+npm run build
+# Creates optimized production build with Turbopack
+# Outputs to .next/ directory
+```
+
+```bash Production Server
+npm start
+# Runs the production build (must run 'build' first)
+# Starts server on port 3000
+```
+
+```bash Linting
+npm run lint
+# Runs ESLint to check code quality
+# Configuration in eslint.config.mjs
+```
+
+```bash Format Code
+npm run format
+# Formats all files with Prettier
+# Configuration in .prettierrc.json
+```
+
+```bash Check Formatting
+npm run format:check
+# Checks if files are formatted correctly
+# Useful for CI/CD pipelines
+```
+</CodeGroup>
+
+## Development Workflow
+
+### Recommended VS Code Extensions
+
+- **ESLint** - Code linting
+- **Prettier** - Code formatting
+- **Tailwind CSS IntelliSense** - Tailwind class autocomplete
+- **TypeScript and JavaScript Language Features** - Built-in
+- **Next.js snippets** - Code snippets for Next.js
+
+### Code Quality
+
+Servineo uses:
+- **ESLint** for code quality (`eslint.config.mjs`)
+- **Prettier** for code formatting (`.prettierrc.json`)
+- **TypeScript** for type safety (`tsconfig.json`)
+
+Run before committing:
+```bash
+npm run lint
+npm run format
+```
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="npm install fails with permission errors">
+    On Unix systems, you might need to fix npm permissions:
+    
+    ```bash
+    sudo chown -R $USER:$(id -gn $USER) ~/.npm
+    ```
+    
+    Or use `nvm` to avoid sudo altogether.
+  </Accordion>
+
+  <Accordion title="Turbopack errors during build">
+    If you encounter Turbopack issues, try:
+    
+    ```bash
+    rm -rf .next
+    npm run dev
+    ```
+    
+    Turbopack cache is stored in `.next/` and can sometimes become corrupted.
+  </Accordion>
+
+  <Accordion title="TypeScript errors in IDE but build succeeds">
+    The current configuration ignores TypeScript errors during builds. To fix:
+    
+    1. Run `npx tsc --noEmit` to see all type errors
+    2. Fix errors incrementally
+    3. Remove `ignoreBuildErrors: true` from `next.config.ts:14`
+  </Accordion>
+
+  <Accordion title="Images not loading from Google Drive">
+    Ensure image remote patterns are configured in `next.config.ts:24`:
+    
+    ```typescript
+    images: {
+      remotePatterns: [
+        { hostname: 'lh3.googleusercontent.com' },
+        { hostname: 'drive.google.com' },
+      ],
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Redux DevTools not working">
+    Redux DevTools only work in development mode. Ensure:
+    
+    ```bash
+    NODE_ENV=development npm run dev
+    ```
+    
+    Install the [Redux DevTools Extension](https://github.com/reduxjs/redux-devtools) for your browser.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Jump straight into using Servineo with our quick setup guide
+  </Card>
+  <Card title="Core Concepts" icon="sitemap" href="/concepts/users-and-roles">
+    Learn about users, roles, and the marketplace architecture
+  </Card>
+  <Card title="API Reference" icon="plug" href="/api/overview">
+    Connect to the backend and work with RTK Query
+  </Card>
+  <Card title="Features" icon="puzzle-piece" href="/features/search-and-filters">
+    Explore platform features and capabilities
+  </Card>
+</CardGroup>

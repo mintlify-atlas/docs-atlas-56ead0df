@@ -1,0 +1,424 @@
+---
+title: 'Tracking Jobs'
+description: 'Monitor job progress from request to completion'
+icon: 'list-check'
+---
+
+## Overview
+
+Once you've scheduled an appointment or accepted a job offer, you can track the job's progress through various stages until completion.
+
+## Job Status States
+
+Jobs progress through several states:
+
+### Status Badges
+
+```tsx app/components/fixers/RequestedJob.tsx
+function getStateBadgeClasses(state: string) {
+  switch (state) {
+    case 'accepted':
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    case 'pending':
+      return 'bg-amber-50 text-amber-700 border-amber-200';
+    case 'rejected':
+      return 'bg-rose-50 text-rose-700 border-rose-200';
+    case 'completed':
+      return 'bg-blue-50 text-blue-700 border-blue-200';
+    default:
+      return 'bg-gray-50 text-gray-700 border-gray-200';
+  }
+}
+```
+
+<Steps>
+  <Step title="Pending" icon="clock">
+    **Initial State**: Job request submitted, waiting for fixer response
+    
+    - Badge: Amber/Yellow
+    - Fixer is reviewing your request
+    - You may receive questions or clarifications
+    - No action required from you yet
+  </Step>
+  
+  <Step title="Accepted" icon="check-circle">
+    **Confirmed**: Fixer has accepted the job
+    
+    - Badge: Green/Emerald
+    - Appointment scheduled
+    - Time and date confirmed
+    - Prepare for service delivery
+  </Step>
+  
+  <Step title="In Progress" icon="spinner">
+    **Active Work**: Fixer is currently performing the service
+    
+    - Job is being executed
+    - Real-time updates available
+    - Contact fixer if questions arise
+  </Step>
+  
+  <Step title="Completed" icon="circle-check">
+    **Finished**: Work has been completed
+    
+    - Badge: Blue
+    - Service delivery finished
+    - Ready for review
+    - Payment processed
+  </Step>
+  
+  <Step title="Rejected" icon="circle-x">
+    **Declined**: Fixer could not accept the request
+    
+    - Badge: Red/Rose
+    - May include reason
+    - Look for alternative fixers
+    - Create new request if needed
+  </Step>
+</Steps>
+
+## Requested Jobs View
+
+View all your job requests in one place using the `RequestedJob` component:
+
+```tsx app/components/fixers/RequestedJob.tsx
+export default function RequestedJob({
+  name = '',
+  jobTitle = '',
+  schedule = '',
+  state = '',
+  onAppointmentDetails,
+  onRegisterJob,
+  onViewPromos,
+  onCreatePromo,
+}: {
+  name: string;
+  jobTitle: string;
+  schedule: string;
+  state: string;
+  onAppointmentDetails?: () => void;
+  onRegisterJob?: () => void;
+  onViewPromos?: () => void;
+  onCreatePromo?: () => void;
+})
+```
+
+### Job Card Information
+
+Each job card displays:
+
+<CardGroup cols={2}>
+  <Card title="Fixer Name" icon="user">
+    Name badge showing the assigned fixer
+  </Card>
+  
+  <Card title="Job Title" icon="briefcase">
+    Service description and job type
+  </Card>
+  
+  <Card title="Schedule" icon="clock">
+    Appointment date and time
+  </Card>
+  
+  <Card title="Status" icon="flag">
+    Current state with color-coded badge
+  </Card>
+</CardGroup>
+
+## Job Actions Menu
+
+Each job card includes a kebab menu (⋮) with available actions:
+
+```tsx app/components/fixers/RequestedJob.tsx
+<button
+  type='button'
+  aria-haspopup='menu'
+  aria-expanded={open}
+  onClick={() => setOpen((v) => !v)}
+>
+  <KebabIcon />
+</button>
+```
+
+### Available Actions
+
+<AccordionGroup>
+  <Accordion title="Appointment Details">
+    View complete information about the scheduled appointment:
+    
+    - Full service description
+    - Fixer contact information
+    - Exact location details
+    - Time and duration
+    - Pricing breakdown
+    - Special instructions
+    
+    ```tsx
+    <button
+      role='menuitem'
+      onClick={handleAppointment}
+    >
+      Appointment details
+    </button>
+    ```
+  </Accordion>
+  
+  <Accordion title="Register Job">
+    Access to job registration features (for fixers):
+    
+    - Mark job as started
+    - Update progress
+    - Add completion notes
+    - Upload completion photos
+  </Accordion>
+  
+  <Accordion title="View Promos">
+    See any active promotions or discounts:
+    
+    ```tsx
+    <button
+      role='menuitem'
+      onClick={handleViewPromos}
+    >
+      View promos
+    </button>
+    ```
+    
+    - Current promotion details
+    - Discount amounts
+    - Expiration dates
+    - Terms and conditions
+  </Accordion>
+  
+  <Accordion title="Create Promo">
+    Available for fixers to create new promotional offers
+  </Accordion>
+</AccordionGroup>
+
+## Tracking Appointments
+
+Navigate to `/tracking-appointments` to see your upcoming and past appointments:
+
+### Calendar Integration
+
+The tracking page integrates with the calendar system:
+
+```tsx app/[locale]/calendar/page.tsx
+const { getAppointmentsForDay, refetch: refetchConts } = useDailyConts({
+  date: today,
+  fixer_id,
+});
+```
+
+### Daily Appointments View
+
+See all appointments for a selected day:
+
+- Time-ordered list
+- Status indicators
+- Quick action buttons
+- Swipe to navigate dates
+
+## Real-time Updates
+
+The system automatically refreshes job status:
+
+```tsx app/[locale]/calendar/page.tsx
+const refetchAll = useCallback(() => {
+  refetchSixMonths();
+  refetchConts();
+}, [refetchSixMonths, refetchConts]);
+```
+
+<Info>
+  Job status updates happen automatically. You'll receive notifications when status changes.
+</Info>
+
+## Filtering Jobs
+
+Filter your jobs by:
+
+<Tabs>
+  <Tab title="By Status">
+    - All jobs
+    - Pending only
+    - Accepted only
+    - Completed only
+    - Rejected only
+  </Tab>
+  
+  <Tab title="By Date">
+    - Upcoming appointments
+    - Past jobs
+    - This week
+    - This month
+    - Custom date range
+  </Tab>
+  
+  <Tab title="By Fixer">
+    - All fixers
+    - Specific fixer
+    - Favorite fixers
+    - Recent fixers
+  </Tab>
+</Tabs>
+
+## Job Notifications
+
+Stay informed with automatic notifications:
+
+<CardGroup cols={2}>
+  <Card title="Status Changes" icon="bell">
+    When job status updates (accepted, started, completed)
+  </Card>
+  
+  <Card title="Messages" icon="message">
+    When fixer sends messages or updates
+  </Card>
+  
+  <Card title="Reminders" icon="clock">
+    24 hours before scheduled appointments
+  </Card>
+  
+  <Card title="Completion" icon="check">
+    When job is marked as complete
+  </Card>
+</CardGroup>
+
+## Viewing Job History
+
+Access your complete job history:
+
+### History Features
+
+- **Search** - Find specific past jobs
+- **Export** - Download job records
+- **Filter** - By date, status, or fixer
+- **Details** - View complete job information
+
+## Communication During Jobs
+
+Stay in contact with your fixer:
+
+### WhatsApp Integration
+
+```tsx Components/Job-offers/Job-offer-modal.tsx
+const handleWhatsAppClick = () => {
+  if (!whatsappClean) return;
+  const url = `https://wa.me/${whatsappClean}`;
+  window.open(url, '_blank');
+};
+```
+
+- Direct messaging
+- Photo sharing
+- Location sharing
+- Voice messages
+- Video calls
+
+<Warning>
+  All communication should go through official channels. Avoid sharing personal payment information via chat.
+</Warning>
+
+## Canceling Jobs
+
+If you need to cancel a scheduled job:
+
+<Steps>
+  <Step title="Open Job Details">
+    Navigate to the job from your tracking list
+  </Step>
+  
+  <Step title="Select Cancel Option">
+    Click the cancel button in the actions menu
+  </Step>
+  
+  <Step title="Provide Reason">
+    Optionally explain why you're canceling
+  </Step>
+  
+  <Step title="Confirm Cancellation">
+    Review the cancellation policy and confirm
+  </Step>
+  
+  <Step title="Notify Fixer">
+    System automatically notifies the fixer
+  </Step>
+</Steps>
+
+### Cancellation Policy
+
+- **24+ hours notice**: Full refund/no penalty
+- **12-24 hours**: Partial cancellation fee may apply
+- **< 12 hours**: Cancellation fee applies
+- **No show**: Full charge
+
+## Job Completion
+
+When a job is marked complete:
+
+1. **Verify Work** - Check that all agreed work is finished
+2. **Take Photos** - Document the completed work
+3. **Confirm Completion** - Accept the completion in the app
+4. **Process Payment** - Payment is finalized
+5. **Leave Review** - Rate your experience
+
+## Disputed Jobs
+
+If there's an issue with a job:
+
+<AccordionGroup>
+  <Accordion title="Report Issue">
+    Document the problem:
+    - Take photos of issues
+    - Describe what's wrong
+    - Submit through the app
+  </Accordion>
+  
+  <Accordion title="Contact Support">
+    Reach out to Servineo support:
+    - Navigate to `/info/support`
+    - Provide job ID and details
+    - Upload supporting evidence
+  </Accordion>
+  
+  <Accordion title="Resolution Process">
+    Support team will:
+    - Review both sides
+    - Request additional information
+    - Mediate solution
+    - Issue resolution within 3-5 business days
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Steps>
+  <Step title="Monitor Status">
+    Check job status regularly, especially before scheduled dates
+  </Step>
+  
+  <Step title="Respond Promptly">
+    Reply to fixer messages and requests quickly
+  </Step>
+  
+  <Step title="Document Everything">
+    Keep photos and records of job progress
+  </Step>
+  
+  <Step title="Confirm Details">
+    Verify time, location, and scope before job starts
+  </Step>
+  
+  <Step title="Be Available">
+    Be reachable during scheduled appointment times
+  </Step>
+</Steps>
+
+## Next Steps
+
+After job completion:
+
+1. [Rate and review the fixer](/requesters/rating-fixers)
+2. Request the same fixer for future jobs
+3. Browse [new job offers](/requesters/finding-fixers) for other needs

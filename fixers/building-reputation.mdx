@@ -1,0 +1,367 @@
+---
+title: 'Building Reputation'
+description: 'Grow your ratings, reviews, and professional reputation on Servineo'
+---
+
+## Reputation System Overview
+
+Your reputation on Servineo is built through ratings, reviews, and your job completion record. A strong reputation leads to:
+
+- More client bookings
+- Higher visibility in search results
+- Ability to charge premium rates
+- Increased trust from new clients
+
+## Rating System
+
+Fixers receive star ratings from 0 to 5:
+
+```typescript
+interface Fixer {
+  rating?: number;        // Average rating (0-5)
+  completedJobs: number;  // Total jobs completed
+  cancelledJobs?: number; // Total jobs cancelled
+}
+```
+
+Your rating is displayed prominently on your profile:
+
+```tsx
+<div className='flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full'>
+  <Star className='w-4 h-4 text-yellow-300 fill-yellow-300' />
+  <span>{fixer.rating?.toFixed(1) || 'Nuevo'}</span>
+</div>
+<span className='text-sm opacity-80'>
+  {fixer.completedJobs} trabajos realizados
+</span>
+```
+
+Implementation: `src/Components/Fixer-profile.tsx:121`
+
+## Job Statistics
+
+Your performance is tracked across multiple metrics:
+
+### Completion Rate
+
+The ratio of completed to total jobs:
+
+```typescript
+interface JobStats {
+  completedJobs: number;
+  cancelledJobs: number;
+  totalJobs: number;
+  completionRate: number;  // Percentage
+}
+
+const calculateCompletionRate = (completed: number, cancelled: number) => {
+  const total = completed + cancelled;
+  return total > 0 ? (completed / total) * 100 : 0;
+};
+```
+
+### Monthly Performance
+
+Track job trends over time:
+
+```typescript
+interface MonthlyData {
+  month: string;
+  completados: number;  // Completed jobs
+  cancelados: number;   // Cancelled jobs
+}
+
+interface Fixer {
+  monthlyData?: MonthlyData[];
+}
+```
+
+Display monthly statistics:
+
+```tsx
+import FixerGraficCard from '@/Components/fixer/Fixer-grafic-card';
+
+<FixerGraficCard
+  completedJobs={fixer.completedJobs ?? 0}
+  cancelledJobs={fixer.cancelledJobs ?? 0}
+  monthlyData={fixer.monthlyData}
+/>
+```
+
+Implementation: `src/Components/Fixer-profile.tsx:306`
+
+## Statistics Dashboard
+
+View detailed performance analytics:
+
+```tsx
+import JobStatistics from '@/Components/fixer/Fixer-statistics';
+
+<JobStatistics />
+```
+
+The statistics component provides:
+- Job completion charts
+- Monthly trend analysis
+- Performance comparisons
+- Key metrics overview
+
+Implementation: `src/Components/Fixer-profile.tsx:313`
+
+## Profile Completion Badge
+
+Complete profiles earn a verification badge:
+
+```tsx
+{user.fixerProfile === 'completed' && (
+  <div
+    className='absolute bottom-0 right-0 h-6 w-6 bg-green-500 border-2 border-white rounded-full'
+    title='Perfil Completo'
+  />
+)}
+```
+
+To earn the badge, ensure you have:
+- Profile photo uploaded
+- Bio/description added
+- Services listed
+- Payment methods configured
+- Contact information verified
+- Location set
+
+Implementation: `src/app/[locale]/fixer/dashboard/page.tsx:124`
+
+## Viewing Rated Jobs
+
+Access your rated job history from the dashboard:
+
+```tsx
+<button
+  onClick={() => router.push('/es/view-rate-jobs')}
+  className='px-4 py-2 bg-primary hover:bg-blue-800 text-white rounded-full'
+>
+  Ver trabajos calificados
+</button>
+```
+
+This page shows:
+- All completed jobs with ratings
+- Client feedback and reviews
+- Your responses to reviews
+- Rating trends over time
+
+Implementation: `src/app/[locale]/fixer/dashboard/page.tsx:134`
+
+## Building Certifications
+
+Add professional certifications to boost credibility:
+
+```typescript
+interface ICertification {
+  _id?: string;
+  fixerId: string;
+  name: string;
+  institution: string;
+  issueDate: string;
+  expiryDate?: string;
+  credentialId?: string;
+  credentialUrl?: string;
+}
+```
+
+Manage certifications from your dashboard:
+
+```tsx
+import { CertificationsSection } from '@/Components/fixer/dashboard/CertificationsSection';
+
+<CertificationsSection fixerId={user._id} />
+```
+
+Implementation: `src/app/[locale]/fixer/dashboard/page.tsx:350`
+
+## Showcasing Experience
+
+Display your work history:
+
+```typescript
+interface IExperience {
+  _id?: string;
+  fixerId: string;
+  jobTitle: string;
+  jobType: string;
+  organization: string;
+  isCurrent: boolean;
+  startDate: string;
+  endDate?: string | null;
+}
+```
+
+Manage experience from your dashboard:
+
+```tsx
+import { ExperienceSection } from '@/Components/fixer/dashboard/ExperienceSection';
+
+<ExperienceSection fixerId={user._id} />
+```
+
+Implementation: `src/app/[locale]/fixer/dashboard/page.tsx:351`
+
+## Portfolio Management
+
+Build a visual portfolio of your work:
+
+```typescript
+interface IPortfolioItem {
+  _id?: string;
+  fixerId: string;
+  type: 'image' | 'video';
+  url?: string;
+  youtubeUrl?: string | null;
+}
+```
+
+Manage portfolio from your dashboard:
+
+```tsx
+import { PortfolioSection } from '@/Components/fixer/dashboard/PortfolioSection';
+
+<PortfolioSection fixerId={user._id} />
+```
+
+Implementation: `src/app/[locale]/fixer/dashboard/page.tsx:352`
+
+## Best Practices for Building Reputation
+
+<AccordionGroup>
+  <Accordion title="Deliver Quality Work">
+    - Complete jobs to the best of your ability
+    - Meet or exceed client expectations
+    - Pay attention to details
+    - Ensure client satisfaction before leaving
+  </Accordion>
+
+  <Accordion title="Professional Communication">
+    - Respond promptly to inquiries
+    - Be clear about pricing and timeline
+    - Keep clients updated on progress
+    - Be courteous and professional
+  </Accordion>
+
+  <Accordion title="Reliability">
+    - Arrive on time for appointments
+    - Honor your commitments
+    - Complete jobs as scheduled
+    - Minimize cancellations
+  </Accordion>
+
+  <Accordion title="Complete Your Profile">
+    - Upload a professional photo
+    - Write a detailed bio
+    - Add all certifications
+    - Showcase your best work
+    - Keep information current
+  </Accordion>
+
+  <Accordion title="Continuous Improvement">
+    - Learn from feedback
+    - Upgrade your skills
+    - Stay current with industry trends
+    - Invest in professional development
+  </Accordion>
+</AccordionGroup>
+
+## Reputation Metrics
+
+Key metrics that build your reputation:
+
+<CardGroup cols={2}>
+  <Card title="Star Rating" icon="star">
+    Average rating from all completed jobs (0-5 scale)
+  </Card>
+  <Card title="Completion Rate" icon="check-circle">
+    Percentage of accepted jobs completed successfully
+  </Card>
+  <Card title="Response Time" icon="clock">
+    How quickly you respond to client inquiries
+  </Card>
+  <Card title="Total Jobs" icon="briefcase">
+    Number of jobs completed on the platform
+  </Card>
+  <Card title="Certifications" icon="award">
+    Professional certifications and credentials
+  </Card>
+  <Card title="Portfolio Quality" icon="image">
+    Quality and quantity of work samples
+  </Card>
+</CardGroup>
+
+## Responding to Reviews
+
+While the code doesn't show a review response feature yet, consider:
+
+- Thanking clients for positive reviews
+- Addressing concerns in negative reviews professionally
+- Learning from constructive criticism
+- Never arguing or being defensive
+
+## Join Date Display
+
+Your tenure on the platform builds trust:
+
+```tsx
+const formattedJoinDate = (() => {
+  if (!fixer.joinDate) return null;
+  const date = new Date(fixer.joinDate);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return date.toLocaleDateString('es-ES', {
+    month: 'long',
+    year: 'numeric',
+  });
+})();
+
+{formattedJoinDate && (
+  <p className='mt-1 text-sm opacity-80'>
+    En la app desde {formattedJoinDate}
+  </p>
+)}
+```
+
+Implementation: `src/Components/Fixer-profile.tsx:72`
+
+## Tips for New Fixers
+
+<Steps>
+  <Step title="Complete Your Profile">
+    Fill out all profile sections with accurate, professional information
+  </Step>
+  <Step title="Start with Competitive Pricing">
+    Offer competitive rates initially to build your reputation
+  </Step>
+  <Step title="Deliver Exceptional Service">
+    Focus on quality to earn positive reviews early
+  </Step>
+  <Step title="Ask for Reviews">
+    Politely request ratings after successful job completion
+  </Step>
+  <Step title="Build Your Portfolio">
+    Document your best work with photos and descriptions
+  </Step>
+  <Step title="Stay Active">
+    Regular activity shows you're an engaged, reliable professional
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Dashboard" icon="layout-dashboard" href="/fixers/dashboard">
+    Manage your fixer dashboard
+  </Card>
+  <Card title="Accepting Jobs" icon="check-circle" href="/fixers/accepting-jobs">
+    Create and manage job offers
+  </Card>
+  <Card title="Calendar" icon="calendar" href="/fixers/calendar-management">
+    Manage your availability
+  </Card>
+</CardGroup>

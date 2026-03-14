@@ -1,0 +1,306 @@
+---
+title: "Redux Store"
+description: "Complete Redux store configuration and architecture"
+icon: "database"
+---
+
+## Overview
+
+Servineo uses Redux Toolkit for state management, with RTK Query for API interactions and dedicated slices for different feature domains.
+
+**Source**: `~/workspace/source/src/app/redux/store.ts`
+
+## Store Configuration
+
+```typescript
+import { configureStore } from '@reduxjs/toolkit';
+import { setupListeners } from '@reduxjs/toolkit/query';
+import { baseApi } from './services/baseApi';
+import userReducer from './slice/userSlice';
+import fixerReducer from './slice/fixerSlice';
+import filterReducer from './slice/filterSlice';
+import jobOffersReducer from './slice/jobOffersSlice';
+import jobOfertReducer from './slice/jobOfert';
+import fixersByJobReducer from './slice/fixersByJobSlice';
+import logger from 'redux-logger';
+
+export const store = configureStore({
+  reducer: {
+    [baseApi.reducerPath]: baseApi.reducer,
+    user: userReducer,
+    fixer: fixerReducer,
+    filters: filterReducer,
+    jobOffers: jobOffersReducer,
+    jobOfert: jobOfertReducer,
+    fixersByJob: fixersByJobReducer,
+  },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware().concat(baseApi.middleware).concat(logger),
+  devTools: process.env.NODE_ENV !== 'production',
+});
+
+setupListeners(store.dispatch);
+
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
+```
+
+## Store Structure
+
+### State Slices
+
+| Slice | Purpose | Source |
+|-------|---------|--------|
+| `api` | RTK Query cache and API state | `baseApi.reducer` |
+| `user` | User authentication and profile | `userSlice.ts:4` |
+| `fixer` | Current fixer profile state | `fixerSlice.ts:14` |
+| `filters` | Search and filter state | `filterSlice.ts:25` |
+| `jobOffers` | Simple job offers list | `jobOffersSlice.ts:14` |
+| `jobOfert` | Advanced job offers with pagination | `jobOfert.ts:37` |
+| `fixersByJob` | Fixer listing by job type | `fixersByJobSlice.ts:14` |
+
+## Middleware Configuration
+
+### RTK Query Middleware
+
+Handles caching, invalidation, and refetching:
+
+```typescript
+getDefaultMiddleware().concat(baseApi.middleware)
+```
+
+### Redux Logger
+
+Logs all actions and state changes (development only):
+
+```typescript
+.concat(logger)
+```
+
+<Note>
+Redux Logger is included in all environments. Consider adding a condition to only include it in development.
+</Note>
+
+## DevTools Integration
+
+Redux DevTools are enabled in development:
+
+```typescript
+devTools: process.env.NODE_ENV !== 'production'
+```
+
+## TypeScript Types
+
+### RootState
+
+Complete application state type:
+
+```typescript
+export type RootState = ReturnType<typeof store.getState>;
+
+// Usage
+import { useSelector } from 'react-redux';
+import { RootState } from '@/app/redux/store';
+
+const user = useSelector((state: RootState) => state.user);
+```
+
+### AppDispatch
+
+Typed dispatch for thunks and actions:
+
+```typescript
+export type AppDispatch = typeof store.dispatch;
+
+// Usage
+import { useDispatch } from 'react-redux';
+import { AppDispatch } from '@/app/redux/store';
+
+const dispatch = useDispatch<AppDispatch>();
+```
+
+## Setup Listeners
+
+Enables automatic refetching behaviors:
+
+```typescript
+setupListeners(store.dispatch);
+```
+
+This enables:
+- Refetch on window focus
+- Refetch on network reconnection
+- Request cancellation on component unmount
+
+## Custom Hooks
+
+### Typed Hooks
+
+Create typed versions of React-Redux hooks:
+
+```typescript
+// hooks.ts
+import { useDispatch, useSelector, TypedUseSelectorHook } from 'react-redux';
+import type { RootState, AppDispatch } from './store';
+
+export const useAppDispatch = () => useDispatch<AppDispatch>();
+export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
+```
+
+### Usage
+
+```typescript
+import { useAppSelector, useAppDispatch } from '@/app/redux/hooks';
+
+function MyComponent() {
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.user);
+  
+  // Fully typed dispatch and selectors
+}
+```
+
+## Provider Setup
+
+Wrap your app with the Redux Provider:
+
+```typescript
+import { Provider } from 'react-redux';
+import { store } from '@/app/redux/store';
+
+function App({ Component, pageProps }) {
+  return (
+    <Provider store={store}>
+      <Component {...pageProps} />
+    </Provider>
+  );
+}
+```
+
+## State Persistence
+
+For persistent state across sessions, consider using redux-persist:
+
+```typescript
+import { persistStore, persistReducer } from 'redux-persist';
+import storage from 'redux-persist/lib/storage';
+
+const persistConfig = {
+  key: 'root',
+  storage,
+  whitelist: ['user', 'filters'], // Only persist these reducers
+};
+
+const persistedReducer = persistReducer(persistConfig, rootReducer);
+```
+
+<Warning>
+State persistence is not currently implemented. The jobOfert slice has commented-out persistence code that could be referenced.
+</Warning>
+
+## State Access Patterns
+
+### Accessing State
+
+```typescript
+import { useAppSelector } from '@/app/redux/hooks';
+
+function MyComponent() {
+  // Access user state
+  const user = useAppSelector((state) => state.user.user);
+  const isAuthenticated = useAppSelector((state) => state.user.isAuthenticated);
+  
+  // Access filters
+  const searchQuery = useAppSelector((state) => state.filters.searchQuery);
+  const selectedCities = useAppSelector((state) => state.filters.selectedCities);
+  
+  // Access job offers
+  const offers = useAppSelector((state) => state.jobOffers.offers);
+}
+```
+
+### Dispatching Actions
+
+```typescript
+import { useAppDispatch } from '@/app/redux/hooks';
+import { setUser } from '@/app/redux/slice/userSlice';
+import { setSearchQuery } from '@/app/redux/slice/filterSlice';
+
+function MyComponent() {
+  const dispatch = useAppDispatch();
+  
+  // Dispatch synchronous actions
+  dispatch(setUser(userData));
+  dispatch(setSearchQuery('plumber'));
+}
+```
+
+### Using RTK Query
+
+```typescript
+import { useGetUserByIdQuery } from '@/app/redux/services/userApi';
+
+function UserProfile({ userId }: { userId: string }) {
+  const { data, isLoading, error } = useGetUserByIdQuery(userId);
+  
+  // RTK Query automatically manages cache and state
+}
+```
+
+## Performance Optimization
+
+### Memoized Selectors
+
+```typescript
+import { createSelector } from '@reduxjs/toolkit';
+
+const selectFilters = (state: RootState) => state.filters;
+
+export const selectActiveFilters = createSelector(
+  [selectFilters],
+  (filters) => ({
+    hasCity: filters.selectedCities.length > 0,
+    hasJobType: filters.selectedJobTypes.length > 0,
+    hasSearch: filters.searchQuery.length > 0,
+  })
+);
+```
+
+### Selective Subscriptions
+
+```typescript
+// Only re-render when specific values change
+const userName = useAppSelector((state) => state.user.user?.name);
+const isLoading = useAppSelector((state) => state.user.loading);
+```
+
+## Debugging
+
+### Redux Logger Output
+
+In development, all actions are logged:
+
+```
+prev state: { user: { ... }, filters: { ... } }
+action: { type: 'user/setUser', payload: { ... } }
+next state: { user: { ... }, filters: { ... } }
+```
+
+### Redux DevTools
+
+Use Redux DevTools Extension for:
+- Time-travel debugging
+- Action history
+- State inspection
+- Performance monitoring
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Slices" icon="layer-group" href="/api/slices">
+    Detailed slice documentation
+  </Card>
+  <Card title="API Overview" icon="code" href="/api/overview">
+    RTK Query API reference
+  </Card>
+</CardGroup>

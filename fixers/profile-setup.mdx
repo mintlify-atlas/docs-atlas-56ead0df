@@ -1,0 +1,331 @@
+---
+title: 'Profile Setup'
+description: 'Configure and optimize your fixer profile to attract more clients'
+---
+
+## Profile Components
+
+Your fixer profile is your professional showcase on Servineo. A complete, well-maintained profile helps you:
+
+- Attract more clients
+- Build trust and credibility
+- Increase your booking rate
+- Improve search rankings
+
+## Profile Structure
+
+The fixer profile is rendered by the `FixerProfile` component:
+
+```tsx
+import { FixerProfile } from '@/Components/Fixer-profile';
+
+interface FixerProfileProps {
+  fixer: Fixer;
+  isOwner?: boolean;  // Can the user edit this profile?
+}
+
+export function FixerProfile({ fixer, isOwner = false }: FixerProfileProps) {
+  // Profile rendering logic
+}
+```
+
+See implementation: `src/Components/Fixer-profile.tsx:41`
+
+## Profile Header
+
+The profile header displays your key information:
+
+```tsx
+<div className='bg-gradient-to-r from-blue-600 to-blue-800 p-6 text-white'>
+  <div className='flex flex-col md:flex-row items-center gap-6'>
+    {/* Profile Photo */}
+    <div className='w-32 h-32 rounded-full border-4 border-white'>
+      <Image src={fixer.photo} alt={fixer.name} width={128} height={128} />
+    </div>
+    
+    {/* Name and Location */}
+    <div className='text-center md:text-left flex-1'>
+      <h1 className='text-2xl font-bold'>{fixer.name}</h1>
+      <div className='flex items-center gap-2 mt-2'>
+        <MapPin className='w-4 h-4' />
+        <span>{fixer.city}</span>
+      </div>
+      
+      {/* Rating and Stats */}
+      <div className='flex items-center gap-4 mt-4'>
+        <div className='flex items-center gap-1'>
+          <Star className='w-4 h-4 text-yellow-300 fill-yellow-300' />
+          <span>{fixer.rating?.toFixed(1) || 'Nuevo'}</span>
+        </div>
+        <span className='text-sm'>{fixer.completedJobs} trabajos realizados</span>
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+Implementation: `src/Components/Fixer-profile.tsx:87`
+
+## Editable Bio Section
+
+Fixers can edit their bio to describe their experience and services:
+
+```tsx
+const [isEditing, setIsEditing] = useState(false);
+const [formData, setFormData] = useState<FormData>({
+  bio: fixer.bio || '',
+  phone: fixer.phone || '',
+  city: fixer.city || '',
+  whatsapp: fixer.whatsapp || '',
+});
+
+const handleSave = () => {
+  console.log('Saving profile:', formData);
+  setIsEditing(false);
+};
+```
+
+```tsx
+{isEditing ? (
+  <textarea
+    name='bio'
+    value={formData.bio}
+    onChange={handleInputChange}
+    className='w-full p-3 border rounded-lg'
+    rows={4}
+    placeholder='Cuéntanos sobre ti y tus servicios...'
+  />
+) : (
+  <p className='text-gray-700 whitespace-pre-line'>
+    {fixer.bio || 'Este profesional aún no ha agregado una descripción.'}
+  </p>
+)}
+```
+
+Implementation: `src/Components/Fixer-profile.tsx:192`
+
+## Contact Information
+
+Display and manage contact details:
+
+```tsx
+<div className='space-y-3'>
+  {/* Email */}
+  {fixer.email && (
+    <div className='flex items-center gap-3 p-3 bg-gray-50 rounded-lg'>
+      <Mail className='w-5 h-5 text-gray-500' />
+      <span>{fixer.email}</span>
+    </div>
+  )}
+  
+  {/* Phone */}
+  <div className='flex items-center gap-3 p-3 bg-gray-50 rounded-lg'>
+    <Phone className='w-5 h-5 text-gray-500' />
+    {isEditing ? (
+      <input
+        type='tel'
+        name='phone'
+        value={formData.phone}
+        onChange={handleInputChange}
+        className='flex-1 bg-white px-3 py-2 border rounded-lg'
+      />
+    ) : (
+      <span>{fixer.phone || 'No especificado'}</span>
+    )}
+  </div>
+</div>
+```
+
+Implementation: `src/Components/Fixer-profile.tsx:210`
+
+## Services Display
+
+Showcase your service offerings:
+
+```tsx
+<div className='flex flex-wrap gap-2'>
+  {fixer.services.length > 0 ? (
+    fixer.services.map((service, index) => (
+      <span
+        key={index}
+        className='px-3 py-1.5 bg-blue-50 text-blue-700 text-sm rounded-full font-medium'
+      >
+        {service}
+      </span>
+    ))
+  ) : (
+    <p className='text-gray-500'>Aún no se han agregado servicios</p>
+  )}
+</div>
+```
+
+Implementation: `src/Components/Fixer-profile.tsx:261`
+
+## Payment Methods
+
+Display accepted payment methods:
+
+```tsx
+{fixer.paymentMethods?.length > 0 && (
+  <div className='mt-6'>
+    <h4 className='text-sm font-medium text-gray-500 mb-2'>
+      Métodos de pago aceptados
+    </h4>
+    <div className='flex flex-wrap gap-2'>
+      {fixer.paymentMethods.map((method, index) => (
+        <span
+          key={index}
+          className='px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full'
+        >
+          {method}
+        </span>
+      ))}
+    </div>
+  </div>
+)}
+```
+
+Implementation: `src/Components/Fixer-profile.tsx:276`
+
+## Location Map
+
+Show your service area on an interactive map:
+
+```tsx
+interface LocationMapProps {
+  lat: number;
+  lng: number;
+}
+
+function LocationMap({ lat, lng }: LocationMapProps) {
+  const mapRef = useRef<HTMLDivElement | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+
+  useEffect(() => {
+    // Load Leaflet library
+    if (!window.L) {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.onload = () => setMapLoaded(true);
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current) return;
+
+    const map = L.map(mapRef.current).setView([lat, lng], 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    L.marker([lat, lng]).addTo(map);
+
+    return () => map.remove();
+  }, [lat, lng, mapLoaded]);
+
+  return <div ref={mapRef} className='h-64 w-full rounded-xl border' />;
+}
+```
+
+Implementation: `src/Components/Fixer-profile.tsx:326`
+
+## Statistics Dashboard
+
+Display job statistics and performance metrics:
+
+```tsx
+import FixerGraficCard from '@/Components/fixer/Fixer-grafic-card';
+import JobStatistics from '@/Components/fixer/Fixer-statistics';
+
+<div className='grid grid-cols-1 lg:grid-cols-2 gap-8'>
+  {/* Job completion chart */}
+  <FixerGraficCard
+    completedJobs={fixer.completedJobs ?? 0}
+    cancelledJobs={fixer.cancelledJobs ?? 0}
+    monthlyData={fixer.monthlyData}
+  />
+  
+  {/* Detailed statistics */}
+  <JobStatistics />
+</div>
+```
+
+Implementation: `src/Components/Fixer-profile.tsx:303`
+
+## Profile Completion Indicator
+
+Users with complete profiles get a verification badge:
+
+```tsx
+{user.fixerProfile === 'completed' && (
+  <div
+    className='absolute bottom-0 right-0 h-6 w-6 bg-green-500 border-2 border-white rounded-full'
+    title='Perfil Completo'
+  />
+)}
+```
+
+Implementation: `src/app/[locale]/fixer/dashboard/page.tsx:124`
+
+## WhatsApp Integration
+
+Enable direct client contact via WhatsApp:
+
+```tsx
+const handleContact = () => {
+  if (fixer.whatsapp) {
+    window.open(`https://wa.me/${fixer.whatsapp.replace(/\D/g, '')}`, '_blank');
+  }
+};
+
+<button
+  onClick={handleContact}
+  className='mt-4 px-4 py-2 bg-white text-blue-700 rounded-lg flex items-center gap-2'
+>
+  <MessageSquare className='w-4 h-4' />
+  Contactar por WhatsApp
+</button>
+```
+
+Implementation: `src/Components/Fixer-profile.tsx:60`
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Profile Photo">
+    - Use a professional, well-lit photo
+    - Show your face clearly
+    - Avoid group photos or busy backgrounds
+    - Update regularly to stay current
+  </Accordion>
+
+  <Accordion title="Bio Description">
+    - Highlight your experience and expertise
+    - Mention certifications or special skills
+    - Keep it concise (under 255 characters)
+    - Update based on new skills or achievements
+  </Accordion>
+
+  <Accordion title="Services">
+    - Be specific about what you offer
+    - Only list services you're qualified to perform
+    - Update as you add new skills
+    - Remove services you no longer provide
+  </Accordion>
+
+  <Accordion title="Contact Information">
+    - Keep phone numbers current
+    - Enable WhatsApp for faster communication
+    - Respond promptly to inquiries
+    - Set appropriate availability
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Dashboard" icon="layout-dashboard" href="/fixers/dashboard">
+    Manage your fixer dashboard
+  </Card>
+  <Card title="Accepting Jobs" icon="check-circle" href="/fixers/accepting-jobs">
+    Start accepting job offers
+  </Card>
+</CardGroup>

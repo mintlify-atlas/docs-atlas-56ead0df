@@ -1,0 +1,340 @@
+---
+title: 'Creating Job Requests'
+description: 'Submit detailed job requests to fixers with location, timing, and budget information'
+icon: 'file-circle-plus'
+---
+
+## Overview
+
+Job requests allow you to submit your specific service needs directly to fixers. Unlike browsing job offers, requests let you describe exactly what you need and receive custom proposals.
+
+## Opening the Job Request Form
+
+You can create a job request from:
+
+1. **Job Offer Modal** - Click "Solicitar trabajo" button when viewing a fixer's offer
+2. **Job Request Page** - Navigate to `/job-request`
+
+<Note>
+  You must be logged in as a requester to submit job requests. Fixers cannot request jobs.
+</Note>
+
+```tsx Components/Job-offers/Job-offer-modal.tsx
+const handleRequestJobClick = () => {
+  if (!isAuthenticated) {
+    router.push('/signUp');
+    return;
+  }
+  if (user?.role === 'fixer') {
+    return;
+  }
+  setIsMapModalOpen(true);
+};
+```
+
+## Job Request Form
+
+The job request modal (`JobRequestModal`) contains a comprehensive form with validation.
+
+### Required Fields
+
+<Steps>
+  <Step title="Job Motive">
+    Enter the main reason for the service request.
+    
+    **Validation Rules:**
+    - Required field
+    - Text only (numbers are automatically removed)
+    - Must be completed before description field is enabled
+    
+    ```tsx app/[locale]/job-request/ModalFormMap/JobRequestForm.tsx
+    const validateTextOnly = (text: string): string => {
+      return text.replace(/[0-9]/g, '');
+    };
+    ```
+  </Step>
+  
+  <Step title="Job Description">
+    Provide detailed information about the work to be performed.
+    
+    **Features:**
+    - Disabled until job motive is filled
+    - Text-only input (auto-validates)
+    - Multi-line textarea (4 rows)
+    - Required field
+    
+    ```tsx
+    <textarea
+      id='jobDescription'
+      name='jobDescription'
+      value={formData.jobDescription}
+      onChange={handleInputChange}
+      disabled={loading || !formData.jobMotive.trim()}
+      required
+      rows={4}
+    />
+    ```
+  </Step>
+  
+  <Step title="Time Availability">
+    Specify when you're available for the service.
+    
+    **Time Constraints:**
+    - Start time: 7:00 AM - 9:00 PM
+    - End time: 7:00 AM - 9:00 PM
+    - Minimum duration: 2 hours
+    - Maximum duration: 8 hours
+    - End time must be after start time
+    
+    ```tsx app/[locale]/job-request/ModalFormMap/JobRequestForm.tsx
+    const validateTimes = (start: string, end: string): string => {
+      const startTime = new Date(`2000-01-01T${start}`);
+      const endTime = new Date(`2000-01-01T${end}`);
+      
+      const minTime = new Date(`2000-01-01T07:00`);
+      const maxTime = new Date(`2000-01-01T21:00`);
+      
+      if (startTime < minTime || startTime > maxTime) {
+        return 'La hora de inicio debe estar entre 7:00 y 21:00';
+      }
+      
+      const durationMs = endTime.getTime() - startTime.getTime();
+      const durationHours = durationMs / (1000 * 60 * 60);
+      
+      if (durationHours < 2) {
+        return 'La duración mínima del trabajo es de 2 horas';
+      }
+      
+      if (durationHours > 8) {
+        return 'La duración máxima del trabajo es de 8 horas';
+      }
+      
+      return '';
+    };
+    ```
+  </Step>
+</Steps>
+
+### Optional Fields
+
+<AccordionGroup>
+  <Accordion title="Suggested Rate">
+    Provide a budget estimate in Bolivianos (Bs).
+    
+    - Optional field
+    - Numeric input
+    - Helps fixers understand your budget expectations
+    
+    ```tsx
+    <input
+      type='number'
+      id='suggestedRate'
+      name='suggestedRate'
+      value={formData.suggestedRate}
+      placeholder='Ingrese una tarifa en bs.'
+    />
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Location Options
+
+Choose how to set the job location:
+
+<Tabs>
+  <Tab title="Keep Saved Location">
+    Use your registered address or previous job location.
+    
+    ```tsx
+    <input
+      type='radio'
+      name='locationOption'
+      value='keep'
+      checked={formData.locationOption === 'keep'}
+    />
+    ```
+  </Tab>
+  
+  <Tab title="Modify Location">
+    Select a custom location on the interactive map.
+    
+    - Enables the map interface
+    - Drag the marker to set exact location
+    - Useful for on-site services at different addresses
+    
+    ```tsx app/[locale]/job-request/ModalFormMap/JobRequestForm.tsx
+    const currentMapLocation = useMemo(() => {
+      if (formData.locationOption === 'modify' && newLocation) {
+        return newLocation;
+      }
+      return initialLocation || { lat: -16.5, lng: -68.15 };
+    }, [formData.locationOption, newLocation, initialLocation]);
+    ```
+  </Tab>
+</Tabs>
+
+### Interactive Map
+
+The map component (`MapJobRequest`) provides:
+
+- **Visual Location Selection** - Drag marker to exact position
+- **Enabled/Disabled States** - Only active when "modify" is selected
+- **Initial Position** - Defaults to saved location or La Paz coordinates
+- **Position Callback** - Updates form data when marker moves
+
+```tsx app/[locale]/job-request/ModalFormMap/JobRequestForm.tsx
+<MapJobRequestMemo
+  isEnabled={isMapEnabled}
+  initialLocationObject={currentMapLocation}
+  onPositionChange={handlePositionChange}
+/>
+```
+
+## Form Validation
+
+### Real-time Validation
+
+The form validates as you type:
+
+<CardGroup cols={2}>
+  <Card title="Field Dependencies" icon="link">
+    Job description disabled until motive is filled
+  </Card>
+  
+  <Card title="Time Validation" icon="clock">
+    Live feedback on duration and time range
+  </Card>
+  
+  <Card title="Text Sanitization" icon="shield">
+    Automatic removal of numbers from text fields
+  </Card>
+  
+  <Card title="Submit Enable/Disable" icon="lock">
+    Submit button only enabled when all validations pass
+  </Card>
+</CardGroup>
+
+### Visual Feedback
+
+**Error Messages:**
+```tsx
+{timeError && (
+  <div className='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded'>
+    {timeError}
+  </div>
+)}
+```
+
+**Success Messages:**
+```tsx
+{formData.startTime && formData.endTime && !timeError && (
+  <div className='bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded'>
+    Duración: {calculateDuration(formData.startTime, formData.endTime)}
+  </div>
+)}
+```
+
+## Submitting the Request
+
+### Submit Button State
+
+The submit button is only enabled when:
+
+```tsx app/[locale]/job-request/ModalFormMap/JobRequestForm.tsx
+const isFormValid = useMemo(() => {
+  return (
+    formData.jobMotive.trim() !== '' &&
+    formData.jobDescription.trim() !== '' &&
+    formData.startTime !== '' &&
+    formData.endTime !== '' &&
+    !timeError
+  );
+}, [
+  formData.jobMotive,
+  formData.jobDescription,
+  formData.startTime,
+  formData.endTime,
+  timeError,
+]);
+```
+
+### On Submit
+
+When you click "Guardar":
+
+1. **Final Validation** - All fields checked one last time
+2. **Location Processed** - New location or saved location determined
+3. **Data Submission** - Request sent to backend with fixer ID and offer ID
+4. **Modal Closes** - Success state triggers modal dismissal
+
+```tsx
+const handleSubmit = (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  if (!formData.jobMotive.trim()) {
+    setFieldErrors((prev) => ({ ...prev, jobMotive: 'Este campo es requerido' }));
+    return;
+  }
+  
+  onSubmit(formData, newLocation);
+};
+```
+
+## Form Data Structure
+
+The submitted job request contains:
+
+```typescript types/job-request.ts
+interface JobRequestData {
+  jobMotive: string;              // Why you need the service
+  jobDescription: string;         // Detailed work description
+  locationOption: 'keep' | 'modify';  // Location choice
+  startTime: string;              // Start time (HH:MM format)
+  endTime: string;                // End time (HH:MM format)
+  suggestedRate?: string;         // Optional budget
+}
+
+interface Location {
+  lat: number;                    // Latitude
+  lng: number;                    // Longitude
+}
+```
+
+<Warning>
+  Double-check all information before submitting. Job requests are sent directly to fixers and cannot be edited after submission.
+</Warning>
+
+## After Submission
+
+Once submitted:
+
+1. **Fixer Notification** - The fixer receives your job request
+2. **Offer Creation** - Fixer can create a custom offer for you
+3. **Notification** - You'll be notified when offers arrive
+4. **Review Offers** - Check [Job Offers](/requesters/job-offers) to review and accept
+
+## Best Practices
+
+<Steps>
+  <Step title="Be Specific">
+    Provide detailed descriptions of exactly what needs to be done
+  </Step>
+  
+  <Step title="Realistic Timing">
+    Allow enough time for the job to be completed properly (minimum 2 hours)
+  </Step>
+  
+  <Step title="Budget Transparency">
+    Include a suggested rate if you have budget constraints
+  </Step>
+  
+  <Step title="Accurate Location">
+    Ensure the location is correct to avoid confusion
+  </Step>
+</Steps>
+
+## Next Steps
+
+- [Manage job offers](/requesters/job-offers) from fixers
+- [Schedule appointments](/requesters/scheduling-appointments) once offers are accepted
+- [Track job progress](/requesters/tracking-jobs) in real-time

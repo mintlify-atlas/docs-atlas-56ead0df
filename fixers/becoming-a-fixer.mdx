@@ -1,0 +1,278 @@
+---
+title: 'Becoming a Fixer'
+description: 'Complete the fixer registration process and start offering your services on Servineo'
+---
+
+## Registration Process
+
+Becoming a Fixer on Servineo involves completing a multi-step registration wizard that collects your professional information and verifies your credentials.
+
+## Step 1: Initial Registration
+
+The registration form collects your basic contact information:
+
+```typescript
+interface InitialRegistrationData {
+  name: string;      // Full name (max 30 characters)
+  email: string;     // Valid email address
+  phone: string;     // Contact phone number
+}
+```
+
+### Implementation
+
+The initial form uses React Hook Form with Zod validation:
+
+```tsx
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { initialRegistrationSchema } from '@/app/lib/validations/fixer-schemas';
+
+const { control, handleSubmit, formState: { errors } } = useForm<InitialRegistrationData>({
+  resolver: zodResolver(initialRegistrationSchema),
+  defaultValues: {
+    name: '',
+    email: '',
+    phone: '',
+  },
+  mode: 'onChange',
+});
+```
+
+See the full implementation: `src/Components/fixer/Fixer-register-form.tsx:1`
+
+## Step 2: Multi-Step Wizard
+
+After initial registration, complete the 7-step Fixer Enable Wizard:
+
+### Wizard Steps Overview
+
+<Steps>
+  <Step title="Profile Photo">
+    Upload a professional profile photo (required)
+  </Step>
+  <Step title="CI (National ID)">
+    Provide your national identification number
+  </Step>
+  <Step title="Work Location">
+    Set your service area with lat/lng coordinates
+  </Step>
+  <Step title="Services">
+    Select or add custom services you offer
+  </Step>
+  <Step title="Payment Methods">
+    Configure accepted payment methods (cash, QR, credit card)
+  </Step>
+  <Step title="Vehicle Information">
+    Specify if you have a vehicle and its type
+  </Step>
+  <Step title="Terms & Conditions">
+    Accept the platform terms and conditions
+  </Step>
+</Steps>
+
+### Wizard Data Structure
+
+```typescript
+interface FixerProfileData {
+  ci: string;
+  workLocation: {
+    lat: number;
+    lng: number;
+    direccion?: string;
+  };
+  servicios: string[];  // Array of service IDs
+  metodoPago: {
+    hasEfectivo: boolean;
+    qr: boolean;
+    tarjetaCredito: boolean;
+  };
+  accountInfo?: string;
+  experience?: {
+    descripcion?: string;
+  };
+  vehiculo: {
+    hasVehiculo: boolean;
+    tipoVehiculo?: string;
+  };
+  acceptTerms: boolean;
+  url_photo: string;
+}
+```
+
+## Step 3: Profile Photo Upload
+
+Upload a professional profile photo to help clients identify you.
+
+```tsx
+<ProfilePhotoStep
+  photoUrl={url_photo}
+  onPhotoChange={(url) => setValue('url_photo', url, { shouldValidate: true })}
+  error={errors.url_photo?.message}
+/>
+```
+
+Implementation: `src/Components/fixer/steps/Profile-photo-step.tsx:1`
+
+## Step 4: National ID Verification
+
+Provide your CI (Cédula de Identidad) for verification:
+
+```tsx
+<CIStep
+  ci={ci}
+  onCIChange={(val) => setValue('ci', val, { shouldValidate: true })}
+  error={errors.ci?.message}
+/>
+```
+
+Implementation: `src/Components/fixer/steps/Ci-step.tsx:1`
+
+## Step 5: Work Location
+
+Set your primary work location using an interactive map:
+
+```tsx
+<LocationStep
+  location={workLocation}
+  onLocationChange={(val) => setValue('workLocation', val, { shouldValidate: true })}
+  error={errors.workLocation?.message}
+/>
+```
+
+Implementation: `src/Components/fixer/steps/Location-step.tsx:1`
+
+## Step 6: Services Selection
+
+Select from predefined services or add custom ones:
+
+```typescript
+const DEFAULT_SERVICES: Service[] = [
+  { id: 'svc-plumbing', name: 'Plomería' },
+  { id: 'svc-electric', name: 'Electricidad' },
+  { id: 'svc-carpentry', name: 'Carpintería' },
+  { id: 'svc-paint', name: 'Pintura' },
+];
+```
+
+```tsx
+<ServicesStep
+  services={availableServices}
+  selectedServiceIds={servicios}
+  onToggleService={handleToggleService}
+  onAddCustomService={handleAddCustomService}
+  onEditService={handleEditService}
+  onDeleteService={handleDeleteService}
+  error={errors.servicios?.message}
+/>
+```
+
+Implementation: `src/Components/fixer/steps/Services-step.tsx:1`
+
+## Step 7: Payment Methods
+
+Configure which payment methods you accept:
+
+```tsx
+<PaymentStep
+  payments={['cash', 'qr', 'card']}
+  accountInfo={accountInfo || ''}
+  onTogglePayment={handleTogglePayment}
+  onAccountInfoChange={(val) => setValue('accountInfo', val, { shouldValidate: true })}
+  paymentsError={errors.metodoPago?.root?.message}
+  accountError={errors.accountInfo?.message}
+/>
+```
+
+Implementation: `src/Components/fixer/steps/Payment-step.tsx:1`
+
+## Step 8: Vehicle Information
+
+Indicate if you have a vehicle for service delivery:
+
+```tsx
+<VehicleStep
+  hasVehicle={vehiculo?.hasVehiculo}
+  vehicleType={vehiculo?.tipoVehiculo}
+  onHasVehicleChange={(val) => setValue('vehiculo.hasVehiculo', val, { shouldValidate: true })}
+  onVehicleTypeChange={(val) => setValue('vehiculo.tipoVehiculo', val, { shouldValidate: true })}
+  error={errors.vehiculo?.hasVehiculo?.message}
+/>
+```
+
+Implementation: `src/Components/fixer/steps/Vehicle-step.tsx:1`
+
+## Step 9: Terms Acceptance
+
+Review and accept the platform terms:
+
+```tsx
+<TermsStep
+  accepted={acceptTerms}
+  onAcceptChange={(val) => setValue('acceptTerms', val, { shouldValidate: true })}
+  error={errors.acceptTerms?.message}
+/>
+```
+
+Implementation: `src/Components/fixer/steps/Terms-step.tsx:1`
+
+## Submission
+
+The wizard submits data to the backend using RTK Query:
+
+```typescript
+const [convertToFixer] = useConvertToFixerMutation();
+
+const onSubmit: SubmitHandler<FixerProfileData> = async (data) => {
+  const payload = {
+    id: user._id?.toString(),
+    profile: {
+      telefono: user.telefono,
+      ci: data.ci.trim(),
+      services: data.servicios.map(id => {
+        const service = DEFAULT_SERVICES.find(s => s.id === id);
+        return { name: service?.name ?? 'Servicio desconocido' };
+      }),
+      vehicle: data.vehiculo,
+      paymentMethods: [
+        data.metodoPago.hasEfectivo && { type: 'efectivo' },
+        data.metodoPago.qr && { type: 'qr' },
+        data.metodoPago.tarjetaCredito && { type: 'tarjeta' },
+      ].filter(Boolean),
+      location: {
+        lat: Number(data.workLocation.lat),
+        lng: Number(data.workLocation.lng),
+        direccion: data.workLocation.direccion?.trim() || '',
+      },
+      terms: { accepted: data.acceptTerms },
+    },
+  };
+
+  await convertToFixer(payload).unwrap();
+};
+```
+
+See full implementation: `src/Components/fixer/Filter-eneable-wizard.tsx:202`
+
+## Profile Status
+
+After registration, your profile enters a "pending" status for review:
+
+```typescript
+interface IUser {
+  fixerProfile: 'pending' | 'completed' | 'rejected';
+}
+```
+
+Once approved, you can access the full fixer dashboard and start creating job offers.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Profile Setup" icon="settings" href="/fixers/profile-setup">
+    Complete your professional profile
+  </Card>
+  <Card title="Dashboard" icon="layout-dashboard" href="/fixers/dashboard">
+    Explore your fixer dashboard
+  </Card>
+</CardGroup>

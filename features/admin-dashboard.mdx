@@ -1,0 +1,295 @@
+---
+title: Admin Dashboard
+description: Comprehensive admin dashboard for monitoring users, sessions, and system analytics
+---
+
+The Servineo admin dashboard provides a centralized interface for administrators to monitor user statistics, manage system analytics, and access specialized administrative modules.
+
+## Overview
+
+The admin dashboard is accessible at `/user-admin/dashboard` and requires administrator authentication. It displays real-time user statistics, role distribution, session analytics, and provides links to external administrative tools.
+
+## Authentication
+
+### Login Methods
+
+The admin system supports two authentication methods:
+
+1. **Email/Password Authentication**
+2. **Google OAuth Integration**
+
+```typescript
+// Email/Password Login
+const data = await adminAPI.login({ email, password });
+
+if (data.success) {
+  localStorage.setItem('adminToken', data.token);
+  localStorage.setItem('adminUser', JSON.stringify(data.user));
+  router.push(`/${locale}/user-admin/dashboard`);
+}
+```
+
+```typescript
+// Google OAuth Login
+const data = await adminAPI.loginWithGoogle(credential);
+
+if (data.success) {
+  localStorage.setItem('adminToken', data.token);
+  localStorage.setItem('adminUser', JSON.stringify(data.user));
+  router.push(`/${locale}/user-admin/dashboard`);
+}
+```
+
+### Token Verification
+
+The dashboard automatically verifies the admin token on load:
+
+```typescript
+const authCheck = await adminAPI.verifyToken(token);
+
+if (!authCheck.valid) {
+  localStorage.removeItem('adminToken');
+  localStorage.removeItem('adminUser');
+  router.push('/es/user-admin');
+}
+```
+
+Location: `src/app/[locale]/user-admin/components/adminLogin.tsx`
+
+## User Statistics
+
+### Real-Time User Data
+
+The dashboard fetches and displays real-time user statistics:
+
+```typescript
+interface UserStatsData {
+  totalUsers: number;
+  usersByRole: {
+    requester: number;
+    fixer: number;
+    visitor: number;
+    admin: number;
+  };
+  timestamp: string;
+  note?: string;
+  source?: string;
+}
+```
+
+### API Integration
+
+```typescript
+const statsResponse = await adminAPI.getUserStats(token);
+
+if (statsResponse.success && statsResponse.data) {
+  setUserStats(statsResponse.data);
+  setLastUpdated(new Date(statsResponse.data.timestamp).toLocaleTimeString());
+}
+```
+
+Location: `src/app/[locale]/user-admin/lib/api.ts:38`
+
+### User Role Distribution
+
+The dashboard displays user distribution across four roles:
+
+- **Requesters**: Users who request services
+- **Fixers**: Service providers
+- **Visitors**: Unregistered users
+- **Admins**: System administrators
+
+Each role card shows:
+- Total count
+- Percentage of total users
+- Visual indicator with role-specific styling
+
+```tsx
+<div className={`${styles.roleCard} ${styles.requesterCard}`}>
+  <div className={styles.roleHeader}>
+    <span className={styles.roleIcon}>👤</span>
+    <span className={styles.roleName}>Requesters</span>
+  </div>
+  <div className={styles.roleCount}>
+    {userStats?.usersByRole?.requester || 0}
+  </div>
+  <div className={styles.rolePercentage}>
+    {Math.round(((userStats.usersByRole?.requester || 0) / userStats.totalUsers) * 100)}%
+  </div>
+</div>
+```
+
+Location: `src/app/[locale]/user-admin/components/adminDashboard.tsx:169`
+
+## Session Analytics
+
+### Charts Section
+
+The dashboard includes a dedicated charts section for session analytics:
+
+```typescript
+interface ChartData {
+  _id: { hour?: number; year?: number; month?: number; day?: number };
+  count: number;
+}
+```
+
+### Session Start/End Tracking
+
+Two charts track user sessions:
+
+1. **Session Start Chart**: Monitors when users begin sessions
+2. **Session End Chart**: Tracks when users close sessions
+
+```typescript
+const [startData, endData] = await Promise.all([
+  adminAPI.getSessionStartChart(token, dateRange.start, dateRange.end),
+  adminAPI.getSessionEndChart(token, dateRange.start, dateRange.end),
+]);
+```
+
+### Date Range Filtering
+
+Admins can filter session data by date range:
+
+```tsx
+<input
+  type="date"
+  value={dateRange.start}
+  onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+/>
+<input
+  type="date"
+  value={dateRange.end}
+  onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+/>
+<button onClick={loadCharts}>Actualizar</button>
+```
+
+Location: `src/app/[locale]/user-admin/components/chartsSection.tsx:60`
+
+## Administrative Modules
+
+### External Module Access
+
+The dashboard provides quick access to specialized administrative modules:
+
+#### Advanced Statistics Module
+
+```tsx
+<button
+  onClick={() => window.open('https://servineo.app/es/adminStatistic', '_self')}
+  className={styles.moduleButton}
+>
+  <div className={styles.moduleIcon}>📊</div>
+  <div className={styles.moduleContent}>
+    <h4>Estadísticas Avanzadas</h4>
+    <p>Métricas detalladas y análisis del sistema</p>
+  </div>
+</button>
+```
+
+#### Appointment Tracking Module
+
+```tsx
+<button
+  onClick={() => window.open('https://servineo.app/es/tracking-appointments', '_self')}
+  className={styles.moduleButton}
+>
+  <div className={styles.moduleIcon}>📍</div>
+  <div className={styles.moduleContent}>
+    <h4>Seguimiento de Citas</h4>
+    <p>Monitoreo y gestión de appointments activos</p>
+  </div>
+</button>
+```
+
+Location: `src/app/[locale]/user-admin/components/adminDashboard.tsx:248`
+
+## Dashboard Features
+
+### Auto-Refresh
+
+Manual refresh capability for user statistics:
+
+```typescript
+const handleRefreshStats = async () => {
+  setStatsLoading(true);
+  try {
+    const statsResponse = await adminAPI.getUserStats(token);
+    if (statsResponse.success && statsResponse.data) {
+      setUserStats(statsResponse.data);
+      setLastUpdated(new Date(statsResponse.data.timestamp).toLocaleTimeString());
+    }
+  } finally {
+    setStatsLoading(false);
+  }
+};
+```
+
+### Logout Functionality
+
+```typescript
+const handleLogout = () => {
+  localStorage.removeItem('adminToken');
+  localStorage.removeItem('adminUser');
+  router.push('/es/user-admin');
+};
+```
+
+### Fallback Data
+
+The dashboard includes fallback data handling for offline scenarios:
+
+```typescript
+catch (error) {
+  console.error('❌ Error cargando datos:', error);
+  
+  setUserStats({
+    totalUsers: 152,
+    usersByRole: {
+      requester: 110,
+      fixer: 41,
+      visitor: 0,
+      admin: 1
+    },
+    timestamp: new Date().toISOString(),
+    note: 'Datos en caché (error de conexión)'
+  });
+}
+```
+
+Location: `src/app/[locale]/user-admin/components/adminDashboard.tsx:58`
+
+## API Endpoints
+
+### Admin API Configuration
+
+```typescript
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+export const adminAPI = {
+  login: async (credentials) => { /* ... */ },
+  loginWithGoogle: async (credential) => { /* ... */ },
+  verifyToken: async (token) => { /* ... */ },
+  getUserStats: async (token) => { /* ... */ },
+  getSessionStartChart: async (token, date, endDate?) => { /* ... */ },
+  getSessionEndChart: async (token, date, endDate?) => { /* ... */ },
+};
+```
+
+Location: `src/app/[locale]/user-admin/lib/api.ts`
+
+## Security
+
+- All API requests include Bearer token authentication
+- Tokens are verified on dashboard load and before each operation
+- Automatic redirect to login if authentication fails
+- Secure storage using localStorage
+- Google OAuth integration for enhanced security
+
+## Related Pages
+
+- [Statistics Dashboard](/features/statistics)
+- [User Management](/features/user-management)
+- [Appointments System](/concepts/appointments)

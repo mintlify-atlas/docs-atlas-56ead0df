@@ -1,0 +1,504 @@
+---
+title: "Redux Slices"
+description: "Complete reference for all Redux state slices"
+icon: "layer-group"
+---
+
+## Overview
+
+Servineo uses Redux Toolkit slices to manage different domains of application state. Each slice handles a specific feature area with its own actions and reducers.
+
+## Available Slices
+
+<CardGroup cols={2}>
+  <Card title="User Slice" icon="user">
+    Authentication and user profile state
+  </Card>
+  <Card title="Fixer Slice" icon="wrench">
+    Current fixer profile state
+  </Card>
+  <Card title="Filter Slice" icon="filter">
+    Search filters and recent searches
+  </Card>
+  <Card title="Job Offers Slices" icon="briefcase">
+    Job offer lists and pagination
+  </Card>
+  <Card title="Fixers by Job Slice" icon="list">
+    Fixer grouping by job category
+  </Card>
+</CardGroup>
+
+---
+
+## User Slice
+
+Manages user authentication and profile state.
+
+**Source**: `~/workspace/source/src/app/redux/slice/userSlice.ts`
+
+### State Shape
+
+```typescript
+interface UserState {
+  user: IUser | null;
+  isAuthenticated: boolean;
+  loading: boolean;
+}
+```
+
+### Actions
+
+#### setUser
+
+Set the current user and authentication status.
+
+```typescript
+import { setUser } from '@/app/redux/slice/userSlice';
+
+dispatch(setUser({
+  id: '123',
+  name: 'John Doe',
+  email: 'john@example.com',
+}));
+```
+
+#### setLoading
+
+Set loading state for user operations.
+
+```typescript
+import { setLoading } from '@/app/redux/slice/userSlice';
+
+dispatch(setLoading(true));
+```
+
+#### logout
+
+Clear user state and mark as unauthenticated.
+
+```typescript
+import { logout } from '@/app/redux/slice/userSlice';
+
+dispatch(logout());
+```
+
+### Usage Example
+
+```typescript
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState } from '@/app/redux/store';
+import { setUser, logout } from '@/app/redux/slice/userSlice';
+
+function AuthComponent() {
+  const dispatch = useDispatch();
+  const { user, isAuthenticated, loading } = useSelector(
+    (state: RootState) => state.user
+  );
+
+  const handleLogin = (userData: IUser) => {
+    dispatch(setUser(userData));
+  };
+
+  const handleLogout = () => {
+    dispatch(logout());
+  };
+
+  return (
+    <div>
+      {isAuthenticated ? (
+        <div>
+          <p>Welcome, {user?.name}</p>
+          <button onClick={handleLogout}>Logout</button>
+        </div>
+      ) : (
+        <button onClick={() => handleLogin(userData)}>Login</button>
+      )}
+    </div>
+  );
+}
+```
+
+---
+
+## Fixer Slice
+
+Manages the currently selected fixer profile.
+
+**Source**: `~/workspace/source/src/app/redux/slice/fixerSlice.ts`
+
+### State Shape
+
+```typescript
+interface FixerState {
+  currentFixer: Fixer | null;
+  loading: boolean;
+}
+```
+
+### Actions
+
+#### setFixer
+
+Set the current fixer profile.
+
+```typescript
+import { setFixer } from '@/app/redux/slice/fixerSlice';
+
+dispatch(setFixer(fixerData));
+```
+
+#### updateFixer
+
+Partially update the current fixer.
+
+```typescript
+import { updateFixer } from '@/app/redux/slice/fixerSlice';
+
+dispatch(updateFixer({ hourlyRate: 75 }));
+```
+
+#### clearFixer
+
+Clear the current fixer.
+
+```typescript
+import { clearFixer } from '@/app/redux/slice/fixerSlice';
+
+dispatch(clearFixer());
+```
+
+#### setLoading
+
+Set loading state.
+
+```typescript
+import { setLoading } from '@/app/redux/slice/fixerSlice';
+
+dispatch(setLoading(true));
+```
+
+---
+
+## Filter Slice
+
+Manages search queries, filters, and recent searches.
+
+**Source**: `~/workspace/source/src/app/redux/slice/filterSlice.ts`
+
+### State Shape
+
+```typescript
+interface FilterState {
+  searchQuery: string;
+  recentSearches: string[];
+  selectedFixerNames: string[];
+  selectedCities: string[];
+  selectedJobTypes: string[];
+  isAutoSelectedJobType: boolean;
+  isAutoSelectedCity: boolean;
+  sidebarOpen: boolean;
+}
+```
+
+### Actions
+
+#### setSearchQuery
+
+Set the current search query.
+
+```typescript
+import { setSearchQuery } from '@/app/redux/slice/filterSlice';
+
+dispatch(setSearchQuery('plumber'));
+```
+
+#### addRecentSearch
+
+Add a search to recent searches (max 5).
+
+```typescript
+import { addRecentSearch } from '@/app/redux/slice/filterSlice';
+
+dispatch(addRecentSearch('electrician Brooklyn'));
+```
+
+#### toggleCity / toggleJobType / toggleFixerName
+
+Toggle filter selections.
+
+```typescript
+import { toggleCity, toggleJobType } from '@/app/redux/slice/filterSlice';
+
+dispatch(toggleCity('New York'));
+dispatch(toggleJobType('plumbing'));
+```
+
+#### autoSelectJobType / autoSelectCity
+
+Auto-select filters (marked as automatic).
+
+```typescript
+import { autoSelectJobType } from '@/app/redux/slice/filterSlice';
+
+dispatch(autoSelectJobType('plumbing'));
+```
+
+#### resetFilters
+
+Clear all filters and search query.
+
+```typescript
+import { resetFilters } from '@/app/redux/slice/filterSlice';
+
+dispatch(resetFilters());
+```
+
+### Selectors
+
+```typescript
+import {
+  selectSearchQuery,
+  selectSelectedCities,
+  selectSelectedJobTypes,
+} from '@/app/redux/slice/filterSlice';
+
+const searchQuery = useSelector(selectSearchQuery);
+const cities = useSelector(selectSelectedCities);
+```
+
+### Usage Example
+
+```typescript
+import { useSelector, useDispatch } from 'react-redux';
+import {
+  setSearchQuery,
+  toggleCity,
+  resetFilters,
+  selectSearchQuery,
+  selectSelectedCities,
+} from '@/app/redux/slice/filterSlice';
+
+function SearchFilters() {
+  const dispatch = useDispatch();
+  const searchQuery = useSelector(selectSearchQuery);
+  const selectedCities = useSelector(selectSelectedCities);
+
+  return (
+    <div>
+      <input
+        value={searchQuery}
+        onChange={(e) => dispatch(setSearchQuery(e.target.value))}
+      />
+      <button onClick={() => dispatch(toggleCity('New York'))}>
+        New York {selectedCities.includes('New York') ? '✓' : ''}
+      </button>
+      <button onClick={() => dispatch(resetFilters())}>
+        Reset All
+      </button>
+    </div>
+  );
+}
+```
+
+---
+
+## Job Offers Slice (Simple)
+
+Simple job offers list management.
+
+**Source**: `~/workspace/source/src/app/redux/slice/jobOffersSlice.ts`
+
+### State Shape
+
+```typescript
+interface JobOffersState {
+  offers: JobOffer[];
+  loading: boolean;
+}
+```
+
+### Actions
+
+- `setOffers(JobOffer[])` - Set the entire offers list
+- `addOffer(JobOffer)` - Add a new offer to the beginning
+- `updateOffer(JobOffer)` - Update an existing offer
+- `deleteOffer(string)` - Delete an offer by ID
+- `setLoading(boolean)` - Set loading state
+
+---
+
+## Job Ofert Slice (Advanced)
+
+Advanced job offers with pagination, filters, and search.
+
+**Source**: `~/workspace/source/src/app/redux/slice/jobOfert.ts`
+
+### State Shape
+
+```typescript
+interface JobOffersState {
+  loading: boolean;
+  error: string | null;
+  filters: {
+    range: any[];
+    city: string[];
+    category: string[];
+  };
+  sortBy: string;
+  search: string;
+  date: string | null;
+  rating: number | null;
+  titleOnly: boolean;
+  exact: boolean;
+  paginaActual: number;
+  registrosPorPagina: number;
+  totalRegistros: number;
+  preservedTotalRegistros: number;
+  totalPages: number;
+  paginaciones: Record<string, PaginationInfo>;
+  shouldPersist: boolean;
+}
+```
+
+### Key Actions
+
+#### Search and Filters
+
+```typescript
+import {
+  setSearch,
+  setFilters,
+  setSortBy,
+  setTitleOnly,
+  setExact,
+} from '@/app/redux/slice/jobOfert';
+
+dispatch(setSearch('plumber'));
+dispatch(setFilters({ city: ['New York'], category: ['plumbing'] }));
+dispatch(setSortBy('recent'));
+```
+
+#### Pagination
+
+```typescript
+import {
+  setPaginaActual,
+  setRegistrosPorPagina,
+  updatePagination,
+} from '@/app/redux/slice/jobOfert';
+
+dispatch(setPaginaActual(2));
+dispatch(setRegistrosPorPagina(20));
+dispatch(updatePagination({
+  total: 100,
+  page: 1,
+  limit: 10,
+  totalPages: 10,
+}));
+```
+
+#### Reset
+
+```typescript
+import { resetFilters, resetPagination } from '@/app/redux/slice/jobOfert';
+
+dispatch(resetFilters());
+dispatch(resetPagination());
+```
+
+---
+
+## Fixers by Job Slice
+
+Manages fixer listings grouped by job type.
+
+**Source**: `~/workspace/source/src/app/redux/slice/fixersByJobSlice.ts`
+
+### State Shape
+
+```typescript
+interface FixersByJobState {
+  searchQuery: string;
+  expandedJobs: string[];
+}
+```
+
+### Actions
+
+```typescript
+import {
+  setSearchQuery,
+  toggleJobExpanded,
+  expandAllJobs,
+  collapseAllJobs,
+} from '@/app/redux/slice/fixersByJobSlice';
+
+dispatch(setSearchQuery('plumber'));
+dispatch(toggleJobExpanded('job-123'));
+dispatch(expandAllJobs(['job-1', 'job-2', 'job-3']));
+dispatch(collapseAllJobs());
+```
+
+### Selectors
+
+```typescript
+import {
+  selectSearchQuery,
+  selectExpandedJobs,
+} from '@/app/redux/slice/fixersByJobSlice';
+
+const query = useSelector(selectSearchQuery);
+const expanded = useSelector(selectExpandedJobs);
+```
+
+---
+
+## Best Practices
+
+### Use Typed Selectors
+
+```typescript
+import { useSelector } from 'react-redux';
+import { RootState } from '@/app/redux/store';
+
+const user = useSelector((state: RootState) => state.user.user);
+```
+
+### Batch Related Actions
+
+```typescript
+import { useDispatch } from 'react-redux';
+import { setSearchQuery, toggleCity } from '@/app/redux/slice/filterSlice';
+
+const dispatch = useDispatch();
+
+// Batch related actions
+dispatch(setSearchQuery('plumber'));
+dispatch(toggleCity('New York'));
+```
+
+### Use Memoized Selectors
+
+```typescript
+import { createSelector } from '@reduxjs/toolkit';
+import { RootState } from '@/app/redux/store';
+
+const selectActiveFiltersCount = createSelector(
+  [(state: RootState) => state.filters],
+  (filters) =>
+    filters.selectedCities.length +
+    filters.selectedJobTypes.length +
+    filters.selectedFixerNames.length
+);
+```
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Redux Store" icon="database" href="/api/redux-store">
+    Store configuration and setup
+  </Card>
+  <Card title="API Overview" icon="code" href="/api/overview">
+    RTK Query API reference
+  </Card>
+</CardGroup>

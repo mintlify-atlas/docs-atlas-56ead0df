@@ -1,0 +1,269 @@
+---
+title: 'Search and Filters'
+description: 'Comprehensive search functionality with dynamic filtering capabilities'
+---
+
+## Overview
+
+Servineo provides a powerful search and filtering system that helps users find the right service professionals quickly. The platform combines real-time search with intelligent filtering across multiple dimensions including location, job type, price range, and fixer name.
+
+## Search Architecture
+
+### Search Bar Component
+
+The main search interface is built with `SearchBar.tsx` and provides:
+
+- **Real-time validation** with character limits (100 characters max)
+- **Search history** with local and backend persistence
+- **Smart suggestions** based on user input and language
+- **Auto-filter matching** that detects job types and cities from search queries
+
+```tsx title="src/Components/Job-offers/Search/SearchBar.tsx" {29-37}
+export const SearchBar = ({ onSearch, onFilter }: SearchBarProps) => {
+  const t = useTranslations('search');
+  const dispatch = useAppDispatch();
+  const { findMatchingJobType, findMatchingCity } = useJobTypeAutoMatch();
+
+  const searchFromStore = useAppSelector((state) => state.jobOfert.search);
+  const filtersFromStore = useAppSelector((state) => state.jobOfert.filters);
+
+  const [value, setValue] = React.useState('');
+  const [error, setError] = React.useState<string | undefined>();
+  // ...
+}
+```
+
+### Search Validation
+
+Search queries are validated using the `validateSearch` utility:
+
+```tsx
+const { isValid, error } = validateSearch(value);
+if (!isValid) {
+  setError(error);
+  return;
+}
+```
+
+### Search History
+
+The search history system uses custom hooks for managing recent searches:
+
+- `useSearchHistory` - Backend-synced history management
+- `useSearchSuggestions` - Real-time search suggestions with debouncing
+- `useSearchKeyboard` - Keyboard navigation for search results
+- `useSearchTouch` - Touch interactions for mobile
+
+```tsx title="Search History Hook Usage" {1-3,5-9}
+const { history, addToHistory, removeFromHistory, clearHistory } = useSearchHistory({
+  useBackend: true,
+});
+
+const { suggestions } = useSearchSuggestions(value, {
+  enabled: value.trim().length > 0,
+  minLength: 1,
+  debounceMs: 300,
+  maxResults: 6,
+  language: currentLanguage,
+});
+```
+
+## Filtering System
+
+### Filter Panel Component
+
+The `FiltersPanel.tsx` component provides a comprehensive filtering interface:
+
+```tsx title="src/Components/FiltersPanel.tsx" {21-30}
+export function FiltersPanel() {
+  const t = useTranslations('filtersPanel');
+  const dispatch = useAppDispatch();
+  const sidebarOpen = useAppSelector(selectSidebarOpen);
+  const selectedFixerNames = useAppSelector(selectSelectedFixerNames);
+  const selectedCities = useAppSelector(selectSelectedCities);
+  const selectedJobTypes = useAppSelector(selectSelectedJobTypes);
+  const isAutoSelectedJobType = useAppSelector(selectIsAutoSelectedJobType);
+  const isAutoSelectedCity = useAppSelector(selectIsAutoSelectedCity);
+  // ...
+}
+```
+
+### Filter Categories
+
+#### 1. Fixer Name Filters
+
+Filter by alphabetical ranges (A-C, D-F, etc.):
+
+```tsx
+{DB_VALUES.ranges.slice(0, 5).map((range) => (
+  <label key={range} className="flex items-center gap-2 p-2">
+    <input
+      type="checkbox"
+      checked={selectedFixerNames.includes(range)}
+      onChange={() => dispatch(toggleFixerName(range))}
+      className="w-4 h-4 text-blue-600 rounded"
+    />
+    <span className="text-sm text-gray-700">{range}</span>
+  </label>
+))}
+```
+
+#### 2. City Filters
+
+Location-based filtering with auto-selection support:
+
+```tsx {8-13}
+{DB_VALUES.cities.map((city) => {
+  const isSelected = selectedCities.includes(city);
+  const isAutoMarked = isAutoSelectedCity && isSelected;
+  const isDisabled = isAutoSelectedCity && !isSelected;
+
+  return (
+    <label key={city} className={`flex items-center gap-2 p-2 ${
+      isDisabled
+        ? 'cursor-not-allowed opacity-50 bg-gray-200'
+        : 'cursor-pointer hover:bg-gray-50'
+    }`}>
+      <input
+        type="checkbox"
+        checked={isSelected}
+        onChange={() => {
+          if (isAutoMarked) return;
+          dispatch(toggleCity(city));
+        }}
+        disabled={isDisabled}
+      />
+      <span>{city}</span>
+    </label>
+  );
+})}
+```
+
+#### 3. Job Type Filters
+
+Filter by service category with intelligent auto-matching:
+
+```tsx
+{DB_VALUES.jobTypes.map((type) => {
+  const isSelected = selectedJobTypes.includes(type);
+  const isAutoMarked = isAutoSelectedJobType && isSelected;
+  const isDisabled = isAutoSelectedJobType && !isSelected;
+
+  return (
+    <label key={type}>
+      <input
+        type="checkbox"
+        checked={isSelected}
+        onChange={() => {
+          if (isAutoMarked) return;
+          dispatch(toggleJobType(type));
+        }}
+        disabled={isDisabled}
+      />
+      <span>{type}</span>
+    </label>
+  );
+})}
+```
+
+## Filter State Management
+
+Filters are managed through Redux with the `filterSlice`:
+
+```tsx title="src/app/redux/slice/filterSlice.ts" {3-12}
+interface FilterState {
+  searchQuery: string;
+  recentSearches: string[];
+  selectedFixerNames: string[];
+  selectedCities: string[];
+  selectedJobTypes: string[];
+  isAutoSelectedJobType: boolean;
+  isAutoSelectedCity: boolean;
+  sidebarOpen: boolean;
+}
+```
+
+### Filter Actions
+
+- `toggleFixerName(name)` - Toggle fixer name range selection
+- `toggleCity(city)` - Toggle city selection
+- `toggleJobType(type)` - Toggle job type selection
+- `autoSelectJobType(type)` - Auto-select based on search query
+- `autoSelectCity(city)` - Auto-select based on search query
+- `resetFilters()` - Clear all filters
+
+## Auto-Filter Matching
+
+The search bar intelligently detects job types and cities from user queries:
+
+```tsx title="Auto-filter matching logic" {1-2,4-6,8-10}
+const applyAutoFilterIfMatch = (searchQuery: string) => {
+  const matchedJobType = findMatchingJobType(searchQuery);
+  const matchedCity = findMatchingCity(searchQuery);
+  const newFilters = { ...filtersFromStore };
+
+  if (matchedJobType) {
+    newFilters.category = [matchedJobType];
+    newFilters.isAutoSelectedCategory = true;
+  }
+
+  if (matchedCity) {
+    newFilters.city = [matchedCity];
+    newFilters.isAutoSelectedCity = true;
+  }
+
+  dispatch(setFilters(newFilters));
+};
+```
+
+## Responsive Design
+
+The filter panel adapts to different screen sizes:
+
+- **Mobile**: Slide-in sidebar with overlay
+- **Desktop**: Fixed sidebar panel
+
+```tsx title="Responsive sidebar" {2-5}
+<aside className={`fixed left-0 top-0 h-screen w-72 bg-white border-r
+  ${sidebarOpen ? 'translate-x-0 shadow-lg' : '-translate-x-full'}
+  lg:relative lg:translate-x-0 lg:top-auto lg:h-auto lg:w-64
+`}>
+  {/* Filter content */}
+</aside>
+```
+
+## Internationalization
+
+All search and filter UI elements support multiple languages through `next-intl`:
+
+```tsx
+const t = useTranslations('filtersPanel');
+
+<h2>{t('filters')}</h2>
+<h3>{t('fixerName')}</h3>
+<h3>{t('city')}</h3>
+<h3>{t('jobCategory')}</h3>
+<button>{t('resetButton.desktop')}</button>
+```
+
+## Performance Optimizations
+
+- **Debounced suggestions** (300ms) to reduce API calls
+- **Session storage caching** for search history
+- **Memoized filter lists** to prevent unnecessary re-renders
+- **Lazy loading** of dropdown content
+
+## Best Practices
+
+1. **Always validate search input** before submitting
+2. **Provide visual feedback** for filter states (active/inactive)
+3. **Support keyboard navigation** for accessibility
+4. **Preserve filter state** across page navigation
+5. **Show clear indicators** for auto-selected filters
+6. **Allow users to clear filters** easily with a reset button
+
+## Related Components
+
+- [Advanced Search](/features/advanced-search) - Extended search capabilities
+- [Map Integration](/features/map-integration) - Location-based search visualization
+- [Internationalization](/features/internationalization) - Multi-language support

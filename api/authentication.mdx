@@ -1,0 +1,199 @@
+---
+title: "Authentication"
+description: "Authentication and authorization in Servineo API"
+---
+
+## Overview
+
+Servineo uses **cookie-based authentication** with httpOnly cookies for secure session management. All API requests automatically include credentials.
+
+## Authentication Flow
+
+<Steps>
+  <Step title="User Login">
+    User submits credentials to the authentication endpoint
+  </Step>
+  <Step title="Cookie Creation">
+    Server validates credentials and sets httpOnly cookie
+  </Step>
+  <Step title="Automatic Authentication">
+    All subsequent API requests include the cookie automatically
+  </Step>
+  <Step title="Session Validation">
+    Server validates cookie on each request
+  </Step>
+</Steps>
+
+## Base Configuration
+
+The base API query is configured to include credentials:
+
+```typescript
+export const baseQuery = fetchBaseQuery({
+  baseUrl: API_URL,
+  prepareHeaders: (headers) => {
+    return headers;
+  },
+  credentials: 'include', // Automatically sends cookies
+});
+```
+
+<Note>
+The `credentials: 'include'` option ensures cookies are sent with every request, even in cross-origin scenarios.
+</Note>
+
+## Protected Endpoints
+
+All endpoints require authentication by default. The server validates the session cookie on each request.
+
+### Example: Making Authenticated Requests
+
+```typescript
+import { useGetUserByIdQuery } from '@/app/redux/services/userApi';
+
+function UserProfile({ userId }: { userId: string }) {
+  const { data: user, isLoading, error } = useGetUserByIdQuery(userId);
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error loading user</div>;
+
+  return <div>{user.name}</div>;
+}
+```
+
+## User State Management
+
+User authentication state is managed in Redux:
+
+```typescript
+interface UserState {
+  user: IUser | null;
+  isAuthenticated: boolean;
+  loading: boolean;
+}
+```
+
+### Authentication Actions
+
+```typescript
+import { setUser, logout } from '@/app/redux/slice/userSlice';
+import { useDispatch } from 'react-redux';
+
+function LoginComponent() {
+  const dispatch = useDispatch();
+
+  const handleLogin = async (user: IUser) => {
+    dispatch(setUser(user));
+  };
+
+  const handleLogout = () => {
+    dispatch(logout());
+  };
+}
+```
+
+## Authorization
+
+### User Roles
+
+Servineo supports multiple user roles:
+
+- **Requester**: Users looking for services
+- **Fixer**: Service providers
+- **Admin**: Platform administrators
+
+### Role-Based Access
+
+Use the `getUsersByRole` endpoint to filter users by role:
+
+```typescript
+import { useGetUsersByRoleQuery } from '@/app/redux/services/userApi';
+
+const { data: fixers } = useGetUsersByRoleQuery('fixer');
+```
+
+## Session Management
+
+### Checking Authentication Status
+
+```typescript
+import { useSelector } from 'react-redux';
+import { RootState } from '@/app/redux/store';
+
+function useAuth() {
+  const { user, isAuthenticated, loading } = useSelector(
+    (state: RootState) => state.user
+  );
+
+  return { user, isAuthenticated, loading };
+}
+```
+
+### Logout Implementation
+
+```typescript
+import { useDispatch } from 'react-redux';
+import { logout } from '@/app/redux/slice/userSlice';
+import { baseApi } from '@/app/redux/services/baseApi';
+
+function LogoutButton() {
+  const dispatch = useDispatch();
+
+  const handleLogout = () => {
+    // Clear user state
+    dispatch(logout());
+    
+    // Clear all RTK Query cache
+    dispatch(baseApi.util.resetApiState());
+    
+    // Redirect or show logout confirmation
+  };
+
+  return <button onClick={handleLogout}>Logout</button>;
+}
+```
+
+## Security Best Practices
+
+<AccordionGroup>
+  <Accordion title="HttpOnly Cookies">
+    Cookies are httpOnly and cannot be accessed via JavaScript, protecting against XSS attacks.
+  </Accordion>
+  <Accordion title="CORS Configuration">
+    API uses proper CORS configuration with `credentials: 'include'` to allow authenticated cross-origin requests.
+  </Accordion>
+  <Accordion title="No Token Storage">
+    No tokens are stored in localStorage or sessionStorage, reducing attack surface.
+  </Accordion>
+</AccordionGroup>
+
+## Common Issues
+
+<Warning>
+**Cookie not being sent?**
+
+Make sure:
+- `credentials: 'include'` is set in baseQuery
+- CORS is properly configured on the backend
+- Cookies are set with the correct domain and path
+</Warning>
+
+<Warning>
+**401 Unauthorized errors?**
+
+This usually means:
+- User session has expired
+- Cookie is missing or invalid
+- User needs to log in again
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="User API" icon="user" href="/api/user">
+    Explore user management endpoints
+  </Card>
+  <Card title="Redux Store" icon="database" href="/api/redux-store">
+    Learn about state management
+  </Card>
+</CardGroup>

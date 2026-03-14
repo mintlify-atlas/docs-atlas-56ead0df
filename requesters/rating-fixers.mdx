@@ -1,0 +1,433 @@
+---
+title: 'Rating & Reviewing Fixers'
+description: 'Provide feedback and ratings to help the community make informed decisions'
+icon: 'star'
+---
+
+## Overview
+
+After a job is completed, you can rate your experience and leave reviews to help other requesters make informed decisions and help fixers improve their services.
+
+## Accessing Rated Jobs
+
+Navigate to `/view-rate-jobs` to see all your completed jobs and their ratings.
+
+### Rated Jobs List
+
+The rated jobs page displays:
+
+```tsx app/[locale]/view-rate-jobs/page.tsx
+function RatedJobsList({ jobs, userId }: { jobs: RatedJob[]; userId?: string }) {
+  return (
+    <section className='space-y-6'>
+      <div className='max-h-[65vh] overflow-y-auto'>
+        {jobs.length === 0 ? (
+          <p className='text-sm text-gray-500'>No hay trabajos calificados aún</p>
+        ) : (
+          <ul className='flex flex-col gap-4'>
+            {jobs.map((job) => (
+              <li key={job.id} className='flex items-center justify-between p-4 rounded-xl'>
+                <div>
+                  <p className='font-medium'>{job.title}</p>
+                  <p className='text-xs text-gray-500'>
+                    Date: {new Date(job.dateISO).toLocaleDateString()}
+                  </p>
+                </div>
+                <StarRating value={job.rating ?? 0} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}
+```
+
+## Rating System
+
+Servineo uses a 3-star rating system:
+
+### Star Values
+
+```tsx app/[locale]/view-rate-jobs/page.tsx
+function StarRating({
+  value,
+  size = 38,
+  srLabel,
+}: {
+  value: 0 | 1 | 2 | 3;
+  size?: number;
+  srLabel?: string;
+}) {
+  return (
+    <div className='inline-flex gap-1' aria-label={srLabel ?? `${value} de 3 estrellas`}>
+      {Array.from({ length: 3 }).map((_, i) => {
+        const filled = i < value;
+        return (
+          <svg
+            key={i}
+            width={size}
+            height={size}
+            viewBox='0 0 24 24'
+            className={filled ? 'drop-shadow-sm' : 'opacity-60'}
+          >
+            <path
+              d='M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z'
+              style={
+                filled
+                  ? { fill: '#facc15' } // yellow
+                  : { fill: 'transparent', stroke: '#cbd5e1', strokeWidth: 1.5 }
+              }
+            />
+          </svg>
+        );
+      })}
+    </div>
+  );
+}
+```
+
+<CardGroup cols={3}>
+  <Card title="1 Star" icon="star" color="#ef4444">
+    **Poor Service**
+    - Significant issues
+    - Did not meet expectations
+    - Would not recommend
+  </Card>
+  
+  <Card title="2 Stars" icon="star" color="#f59e0b">
+    **Acceptable Service**
+    - Some issues but acceptable
+    - Met basic expectations
+    - Might recommend with reservations
+  </Card>
+  
+  <Card title="3 Stars" icon="star" color="#10b981">
+    **Excellent Service**
+    - Exceeded expectations
+    - Professional and skilled
+    - Highly recommend
+  </Card>
+</CardGroup>
+
+## Rating a Completed Job
+
+<Steps>
+  <Step title="Job Completion">
+    After the fixer marks the job as complete, you'll receive a notification to rate the service.
+  </Step>
+  
+  <Step title="Access Rating Form">
+    Click the notification or navigate to the completed job in your job list.
+  </Step>
+  
+  <Step title="Select Star Rating">
+    Choose 1, 2, or 3 stars based on your experience:
+    - Click on the star corresponding to your rating
+    - Stars are interactive and responsive
+    - Selected stars appear filled in yellow
+  </Step>
+  
+  <Step title="Write Review (Optional)">
+    Add detailed feedback about your experience:
+    - What went well
+    - Areas for improvement
+    - Specific skills demonstrated
+    - Professionalism and communication
+  </Step>
+  
+  <Step title="Submit Rating">
+    Click submit to finalize your review.
+    - Rating is immediately visible to other users
+    - Fixer receives notification
+    - Cannot be edited after submission
+  </Step>
+</Steps>
+
+## Viewing Your Ratings
+
+### Rated Jobs Page
+
+The `/view-rate-jobs` page shows all your rating history:
+
+```tsx app/[locale]/view-rate-jobs/page.tsx
+export default function RatedJobsPage() {
+  const { user } = useAppSelector((state) => state.user);
+  const userId = user?._id || user?.id;
+  
+  const [jobs, setJobs] = useState<RatedJob[]>([]);
+  const [currentSort, setCurrentSort] = useState<string>('recent');
+  
+  const fetchJobs = async (sortParam: string) => {
+    const result = await apiFetch<{ data?: RatedJob[] }>(
+      `api/rated-jobs/user/${userId}?sortBy=${sortParam}`,
+    );
+    setJobs(result.data ?? []);
+  };
+}
+```
+
+### Job Cards Display
+
+<CardGroup cols={2}>
+  <Card title="Job Information">
+    - Job title
+    - Service category
+    - Fixer name
+    - Completion date
+  </Card>
+  
+  <Card title="Rating Display">
+    - Star rating (visual)
+    - Numeric value
+    - Review text preview
+    - Date rated
+  </Card>
+</CardGroup>
+
+## Sorting Options
+
+Organize your rated jobs using dropdown filters:
+
+### Sort by Rating
+
+```tsx app/[locale]/view-rate-jobs/page.tsx
+const handleRatingSort = (key: string) => {
+  setCurrentSort(key);
+  fetchJobs(key);
+};
+
+<GenericDropdown
+  label='Ordenar por calificación'
+  onSelect={handleRatingSort}
+  options={[
+    { key: 'rating_desc', label: 'Descendente' },
+    { key: 'rating_asc', label: 'Ascendente' },
+  ]}
+/>
+```
+
+- **Descending** - Highest rated jobs first (3 → 1 stars)
+- **Ascending** - Lowest rated jobs first (1 → 3 stars)
+
+### Sort by Date
+
+```tsx
+const handleDateSort = (key: string) => {
+  setCurrentSort(key);
+  fetchJobs(key);
+};
+
+<GenericDropdown
+  label='Ordenar por fecha'
+  onSelect={handleDateSort}
+  options={[
+    { key: 'recent', label: 'Mas reciente' },
+    { key: 'oldest', label: 'Mas antiguo' },
+  ]}
+/>
+```
+
+- **Most Recent** - Newest ratings first
+- **Oldest** - Earliest ratings first
+
+## Viewing Fixer Comments
+
+Access all public reviews for a fixer:
+
+```tsx app/[locale]/view-rate-jobs/page.tsx
+<Link
+  href={userId ? `/fixers/${userId}/comments` : '#'}
+  className='px-5 py-2 rounded-lg bg-blue-600 text-white'
+>
+  Ir a los comentarios
+</Link>
+```
+
+The comments page shows:
+
+- All reviews for the fixer
+- Average rating
+- Rating distribution
+- Review timestamps
+- Verified completion badges
+
+## Rating Guidelines
+
+### What to Consider
+
+<AccordionGroup>
+  <Accordion title="Quality of Work">
+    - Did the fixer complete the job as described?
+    - Was the work done to professional standards?
+    - Were there any defects or issues?
+    - Did they use quality materials and tools?
+  </Accordion>
+  
+  <Accordion title="Professionalism">
+    - Did they arrive on time?
+    - Were they respectful and courteous?
+    - Did they clean up after the work?
+    - How was their appearance and conduct?
+  </Accordion>
+  
+  <Accordion title="Communication">
+    - Did they respond promptly to messages?
+    - Were they clear about requirements?
+    - Did they keep you updated on progress?
+    - Did they explain their work?
+  </Accordion>
+  
+  <Accordion title="Value">
+    - Was the price fair for the work done?
+    - Were there any hidden costs?
+    - Did they honor the quoted price?
+    - Would you hire them again at this rate?
+  </Accordion>
+</AccordionGroup>
+
+## Writing Effective Reviews
+
+<Steps>
+  <Step title="Be Specific">
+    Mention exact details about what was done well or poorly:
+    - "Fixed the leaky faucet and replaced worn washers"
+    - "Arrived 30 minutes late without notification"
+  </Step>
+  
+  <Step title="Be Honest">
+    Provide truthful feedback that helps others and the fixer:
+    - Don't inflate ratings
+    - Don't be overly harsh
+    - Focus on facts
+  </Step>
+  
+  <Step title="Be Constructive">
+    If giving low ratings, explain how they could improve:
+    - "Would be 3 stars with better communication"
+    - "Great work but needs to improve punctuality"
+  </Step>
+  
+  <Step title="Be Fair">
+    Consider circumstances and context:
+    - Weather delays
+    - Material availability
+    - Complexity beyond initial scope
+  </Step>
+</Steps>
+
+## Rating Data Structure
+
+```typescript types/rated-job.ts
+interface RatedJob {
+  id: string;
+  title: string;
+  dateISO: string;
+  rating: 0 | 1 | 2 | 3;
+  review?: string;
+  fixerId: string;
+  fixerName: string;
+  jobCategory: string;
+}
+```
+
+## Empty State
+
+When you haven't rated any jobs yet:
+
+```tsx
+{jobs.length === 0 && (
+  <div className='flex items-center justify-center min-h-[220px]'>
+    <p className='text-sm text-gray-500'>No hay trabajos calificados aún</p>
+  </div>
+)}
+```
+
+## Loading States
+
+The page shows loading feedback while fetching ratings:
+
+```tsx app/[locale]/view-rate-jobs/page.tsx
+{loading && (
+  <div className='flex items-center gap-2'>
+    <svg className='animate-spin h-5 w-5 text-blue-600'>
+      {/* Loading spinner */}
+    </svg>
+    <span className='text-sm text-gray-500'>Procesando...</span>
+  </div>
+)}
+
+{slowLoading && (
+  <div className='flex items-center gap-2'>
+    <svg className='animate-spin h-5 w-5 text-yellow-500'>
+      {/* Slow loading indicator */}
+    </svg>
+    <span className='text-sm text-gray-500'>Cargando trabajos calificados...</span>
+  </div>
+)}
+```
+
+## Error Handling
+
+```tsx
+{error && (
+  <p className='text-sm text-red-600'>
+    Sin conexión. Intenta de nuevo más tarde
+  </p>
+)}
+```
+
+<Warning>
+  Ratings are permanent and cannot be deleted. Make sure you're satisfied with your rating before submitting.
+</Warning>
+
+## Impact of Your Ratings
+
+Your reviews help:
+
+<CardGroup cols={2}>
+  <Card title="Other Requesters" icon="users">
+    Make informed decisions when choosing fixers
+  </Card>
+  
+  <Card title="Fixers" icon="user-check">
+    Understand their strengths and areas for improvement
+  </Card>
+  
+  <Card title="Platform Quality" icon="shield">
+    Maintain high service standards across Servineo
+  </Card>
+  
+  <Card title="Search Ranking" icon="arrow-up">
+    Well-rated fixers appear higher in search results
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<Steps>
+  <Step title="Rate Promptly">
+    Submit ratings within 24-48 hours of job completion while details are fresh
+  </Step>
+  
+  <Step title="Be Objective">
+    Rate based on the work quality and service, not personal preferences
+  </Step>
+  
+  <Step title="Include Details">
+    Write helpful reviews that provide context for your rating
+  </Step>
+  
+  <Step title="Consider Follow-up">
+    If a fixer corrects an issue, you can contact support to note the resolution
+  </Step>
+</Steps>
+
+## Next Steps
+
+After rating a job:
+
+1. [Find new fixers](/requesters/finding-fixers) for other service needs
+2. Book the same fixer again if you were satisfied
+3. Share your experience with friends and family

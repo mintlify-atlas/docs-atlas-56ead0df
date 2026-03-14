@@ -1,0 +1,409 @@
+---
+title: User Management
+description: User administration, role management, and appointment tracking system
+---
+
+The Servineo user management system provides administrators with tools to monitor active appointments, track user activity, and manage user roles across the platform.
+
+## Overview
+
+The user management interface is accessible at `/tracking-appointments` and provides real-time tracking of appointments, fixer statistics, and geographic distribution of services.
+
+## Appointment Tracking
+
+### Tracking API Integration
+
+The system uses Redux Toolkit Query to fetch appointment data:
+
+```typescript
+import {
+  useGetMapLocationsQuery,
+  useGetTrackingMetricsQuery,
+  useGetFixerStatsQuery,
+} from '@/app/redux/services/trackingAppointmentsApi';
+
+const { data: metrics } = useGetTrackingMetricsQuery({ startDate, endDate });
+const { data: rawMapData, isLoading: loadingMap } = useGetMapLocationsQuery();
+const { data: fixerStats } = useGetFixerStatsQuery();
+```
+
+Location: `src/app/[locale]/tracking-appointments/page.tsx:8`
+
+### Appointment Data Structure
+
+```typescript
+interface ApiAppointment {
+  _id: string;
+  lat: string | number;
+  lon: string | number;
+  fixerName?: string;
+  requesterName?: string;
+  current_requester_name?: string;
+  date?: string;
+  starting_time?: string;
+  status?: string;
+  schedule_state?: string;
+}
+
+interface MappedAppointment {
+  id: string;
+  fixerName: string;
+  requesterName: string;
+  date: string;
+  status: string;
+  lat: number;
+  lng: number;
+  service: string;
+}
+```
+
+Location: `src/app/[locale]/tracking-appointments/page.tsx:17`
+
+### Data Transformation
+
+Appointments are transformed and filtered for display:
+
+```typescript
+const filteredAppointments = useMemo(() => {
+  if (!rawMapData) return [];
+
+  return (rawMapData as ApiAppointment[])
+    .map((app): MappedAppointment => ({
+      id: app._id,
+      fixerName: app.fixerName || t('map.unknown'),
+      requesterName: app.requesterName || app.current_requester_name || t('map.client'),
+      date: app.date || app.starting_time || '',
+      status: app.status || app.schedule_state || 'unknown',
+      lat: Number(app.lat),
+      lng: Number(app.lon),
+      service: '',
+    }))
+    .filter((app) => !isNaN(app.lat) && !isNaN(app.lng))
+    .filter((app) => {
+      if (!startDate || !endDate) return true;
+      const appointmentDate = new Date(app.date);
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59);
+      return appointmentDate >= start && appointmentDate <= end;
+    });
+}, [rawMapData, startDate, endDate, t]);
+```
+
+Location: `src/app/[locale]/tracking-appointments/page.tsx:76`
+
+## Metrics Dashboard
+
+### Metrics Cards Component
+
+Displays key appointment metrics:
+
+```typescript
+interface Metrics {
+  total: number;
+  active: number;
+  cancelled: number;
+}
+
+interface MetricsCardsProps {
+  metrics: Metrics;
+}
+```
+
+### Card Implementation
+
+```tsx
+const MetricsCards: React.FC<MetricsCardsProps> = ({ metrics }) => {
+  const t = useTranslations('tracking.metrics');
+  const { total, active, cancelled } = metrics;
+
+  return (
+    <div className='flex flex-col gap-4'>
+      {/* Total Appointments */}
+      <div className='bg-white shadow-sm rounded p-4 border-l-4 border-blue-500'>
+        <h3 className='text-lg font-semibold text-gray-800'>{t('total')}</h3>
+        <p className='text-2xl font-bold text-blue-600'>{total}</p>
+      </div>
+      
+      {/* Active Appointments */}
+      <div className='bg-white shadow-sm rounded p-4 border-l-4 border-green-500'>
+        <h3 className='text-lg font-semibold text-gray-800'>{t('scheduled')}</h3>
+        <p className='text-2xl font-bold text-green-600'>{active}</p>
+      </div>
+      
+      {/* Cancelled Appointments */}
+      <div className='bg-white shadow-sm rounded p-4 border-l-4 border-red-500'>
+        <h3 className='text-lg font-semibold text-gray-800'>{t('cancelled')}</h3>
+        <p className='text-2xl font-bold text-red-600'>{cancelled}</p>
+      </div>
+    </div>
+  );
+};
+```
+
+Location: `src/Components/Statistics-panel/metrics-cards.tsx:14`
+
+## Geographic Mapping
+
+### Admin Map Component
+
+The system uses Leaflet for interactive appointment mapping:
+
+```tsx
+import dynamic from 'next/dynamic';
+
+const AdminMap = dynamic(
+  () => import('@/Components/Statistics-panel/admin-map'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className='h-full w-full bg-gray-100 flex items-center justify-center'>
+        <span>{t('map.loading')}</span>
+      </div>
+    ),
+  }
+);
+```
+
+### Map Display
+
+```tsx
+<div className='lg:col-span-3 bg-white rounded-xl shadow overflow-hidden'>
+  {loadingMap ? (
+    <div className='h-full flex items-center justify-center'>
+      {t('map.loadingData')}
+    </div>
+  ) : filteredAppointments.length > 0 ? (
+    <AdminMap appointments={filteredAppointments} />
+  ) : (
+    <div className='h-full flex items-center justify-center'>
+      <p>{t('map.noAppointments')}</p>
+    </div>
+  )}
+</div>
+```
+
+Location: `src/app/[locale]/tracking-appointments/page.tsx:146`
+
+### SSR Considerations
+
+The map is dynamically imported with `ssr: false` to prevent server-side rendering issues with Leaflet:
+
+```typescript
+const AdminMap = dynamic(
+  () => import('@/Components/Statistics-panel/admin-map'),
+  { ssr: false }
+);
+```
+
+## Fixer Statistics
+
+### Fixer Stats Table
+
+Displays detailed statistics for each fixer:
+
+```tsx
+import FixerStatsTable from '@/Components/Statistics-panel/fixer-stats-table';
+
+<FixerStatsTable stats={fixerStats} />
+```
+
+The table shows:
+- Fixer names
+- Number of appointments
+- Completion rates
+- Service areas
+- Performance metrics
+
+Location: `src/app/[locale]/tracking-appointments/page.tsx:169`
+
+## Date Filtering
+
+### Date Range Filter
+
+Administrators can filter appointments by date range:
+
+```tsx
+const [startDate, setStartDate] = useState('');
+const [endDate, setEndDate] = useState('');
+
+<div className='flex gap-3 items-end'>
+  <div>
+    <label className='text-xs text-gray-500 block mb-1'>
+      {t('filters.from')}
+    </label>
+    <input
+      type='date'
+      value={startDate}
+      onChange={(e) => setStartDate(e.target.value)}
+      className='border rounded-lg px-3 py-1.5'
+    />
+  </div>
+  <div>
+    <label className='text-xs text-gray-500 block mb-1'>
+      {t('filters.to')}
+    </label>
+    <input
+      type='date'
+      value={endDate}
+      onChange={(e) => setEndDate(e.target.value)}
+      className='border rounded-lg px-3 py-1.5'
+    />
+  </div>
+</div>
+```
+
+### Filter Logic
+
+```typescript
+.filter((app) => {
+  if (!startDate || !endDate) return true;
+  const appointmentDate = new Date(app.date);
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  end.setHours(23, 59, 59);
+  return appointmentDate >= start && appointmentDate <= end;
+})
+```
+
+Location: `src/app/[locale]/tracking-appointments/page.tsx:96`
+
+## Layout Structure
+
+### Responsive Grid Layout
+
+The tracking page uses a responsive grid:
+
+```tsx
+<div className='grid grid-cols-1 lg:grid-cols-4 gap-6 lg:h-[550px]'>
+  {/* Map - 75% width on large screens */}
+  <div className='lg:col-span-3 h-[400px] lg:h-full'>
+    <AdminMap appointments={filteredAppointments} />
+  </div>
+
+  {/* Metrics - 25% width on large screens */}
+  <div className='lg:col-span-1'>
+    <MetricsCards metrics={metrics} />
+  </div>
+</div>
+```
+
+Location: `src/app/[locale]/tracking-appointments/page.tsx:144`
+
+## User Roles
+
+### Role Types
+
+The system tracks three primary user roles:
+
+1. **Visitor**: Unauthenticated users browsing the platform
+2. **Requester**: Users requesting services
+3. **Fixer**: Service providers
+4. **Admin**: System administrators
+
+### Role-Based Activity
+
+Activity logs track role-specific actions:
+
+```typescript
+interface JobLog {
+  userId: string;
+  role: 'visitor' | 'requester' | 'fixer';
+  type: 'login' | 'search' | 'click' | 'review' | 'session_start' | 'session_end';
+  metadata: JobStatusMetadata;
+  timestamp: string;
+}
+```
+
+Location: `src/app/redux/services/statisticsApi.ts:11`
+
+## Real-Time Updates
+
+### Metrics Query
+
+Metrics are fetched with date range parameters:
+
+```typescript
+const { data: metrics = { total: 0, active: 0, cancelled: 0 } } = 
+  useGetTrackingMetricsQuery({
+    startDate,
+    endDate,
+  });
+```
+
+### Auto-Refresh
+
+The queries automatically refetch when dependencies change:
+
+```typescript
+useMemo(() => {
+  // Recalculates when rawMapData, startDate, or endDate changes
+}, [rawMapData, startDate, endDate, t]);
+```
+
+## Internationalization
+
+All user-facing text uses the translation system:
+
+```typescript
+const t = useTranslations('tracking');
+
+// Example keys:
+t('title')
+t('subtitle')
+t('filters.from')
+t('filters.to')
+t('map.loading')
+t('map.loadingData')
+t('map.noAppointments')
+t('map.unknown')
+t('map.client')
+t('metrics.total')
+t('metrics.scheduled')
+t('metrics.cancelled')
+```
+
+## Loading States
+
+Multiple loading states provide feedback:
+
+```tsx
+{loadingMap ? (
+  <div className='flex items-center justify-center'>
+    {t('map.loadingData')}
+  </div>
+) : filteredAppointments.length > 0 ? (
+  <AdminMap appointments={filteredAppointments} />
+) : (
+  <div className='flex items-center justify-center'>
+    {t('map.noAppointments')}
+  </div>
+)}
+```
+
+## Error Handling
+
+### Coordinate Validation
+
+Appointments with invalid coordinates are filtered out:
+
+```typescript
+.filter((app) => !isNaN(app.lat) && !isNaN(app.lng))
+```
+
+### Fallback Values
+
+Missing data uses fallback values:
+
+```typescript
+fixerName: app.fixerName || t('map.unknown'),
+requesterName: app.requesterName || app.current_requester_name || t('map.client'),
+date: app.date || app.starting_time || '',
+status: app.status || app.schedule_state || 'unknown',
+```
+
+## Related Pages
+
+- [Admin Dashboard](/features/admin-dashboard)
+- [Statistics Dashboard](/features/statistics)
+- [Appointments System](/concepts/appointments)

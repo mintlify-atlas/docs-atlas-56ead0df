@@ -1,0 +1,326 @@
+---
+title: "Search API"
+description: "Search logging and filter management endpoints"
+icon: "magnifying-glass"
+---
+
+## Overview
+
+The Search API tracks user search behavior and manages filter preferences. This data is used for analytics and improving search relevance.
+
+**Source**: `~/workspace/source/src/app/redux/services/searchApi.ts`
+
+## Endpoints
+
+### Log Search
+
+Log a user's search query with filters and context.
+
+```typescript
+import { useLogSearchMutation } from '@/app/redux/services/searchApi';
+
+const [logSearch] = useLogSearchMutation();
+
+await logSearch({
+  user_type: 'requester',
+  search_query: 'plumber near me',
+  search_type: 'fixer_search',
+  filters: {
+    fixer_name: '',
+    city: 'New York',
+    job_type: 'plumbing',
+    search_count: 1,
+  },
+}).unwrap();
+```
+
+<ParamField body="user_type" type="string" required>
+  Type of user performing the search: `'requester'` or `'fixer'`
+</ParamField>
+
+<ParamField body="search_query" type="string" required>
+  The search query string entered by the user
+</ParamField>
+
+<ParamField body="search_type" type="string" required>
+  Type of search being performed (e.g., `'fixer_search'`, `'job_search'`)
+</ParamField>
+
+<ParamField body="filters" type="object" required>
+  Active filters applied to the search
+</ParamField>
+
+<ParamField body="filters.fixer_name" type="string">
+  Filter by fixer name
+</ParamField>
+
+<ParamField body="filters.city" type="string">
+  Filter by city/location
+</ParamField>
+
+<ParamField body="filters.job_type" type="string">
+  Filter by job category/type
+</ParamField>
+
+<ParamField body="filters.search_count" type="number">
+  Number of times this search has been performed
+</ParamField>
+
+**Endpoint**: `POST /searches`
+
+**Cache Invalidation**: Invalidates `'Requester'` cache tags
+
+---
+
+### Update Filters
+
+Update a user's filter preferences.
+
+```typescript
+import { useUpdateFiltersMutation } from '@/app/redux/services/searchApi';
+
+const [updateFilters] = useUpdateFiltersMutation();
+
+await updateFilters({
+  filters: {
+    fixer_name: 'John Plumber',
+    city: 'Brooklyn',
+    job_type: 'plumbing',
+    search_count: 5,
+  },
+}).unwrap();
+```
+
+<ParamField body="filters" type="object" required>
+  Updated filter preferences
+</ParamField>
+
+<ParamField body="filters.fixer_name" type="string">
+  Preferred fixer name filter
+</ParamField>
+
+<ParamField body="filters.city" type="string">
+  Preferred city filter
+</ParamField>
+
+<ParamField body="filters.job_type" type="string">
+  Preferred job type filter
+</ParamField>
+
+<ParamField body="filters.search_count" type="number">
+  Updated search count
+</ParamField>
+
+**Endpoint**: `PATCH /searches`
+
+**Cache Invalidation**: Invalidates `'Requester'` cache tags
+
+## Types
+
+### SearchData
+
+```typescript
+interface SearchData {
+  user_type: string;
+  search_query: string;
+  search_type: string;
+  filters: {
+    fixer_name: string;
+    city: string;
+    job_type: string;
+    search_count: number;
+  };
+}
+```
+
+### FilterData
+
+```typescript
+interface FilterData {
+  filters: {
+    fixer_name: string;
+    city: string;
+    job_type: string;
+    search_count: number;
+  };
+}
+```
+
+## Example Usage
+
+### Search with Analytics
+
+```typescript
+import { useLogSearchMutation } from '@/app/redux/services/searchApi';
+import { useGetFixersQuery } from '@/app/redux/services/fixerApi';
+import { useState } from 'react';
+
+function SearchBar() {
+  const [query, setQuery] = useState('');
+  const [logSearch] = useLogSearchMutation();
+  const { refetch: searchFixers } = useGetFixersQuery();
+
+  const handleSearch = async () => {
+    // Log the search
+    await logSearch({
+      user_type: 'requester',
+      search_query: query,
+      search_type: 'fixer_search',
+      filters: {
+        fixer_name: '',
+        city: '',
+        job_type: '',
+        search_count: 1,
+      },
+    });
+
+    // Perform the actual search
+    searchFixers();
+  };
+
+  return (
+    <div>
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search for fixers..."
+      />
+      <button onClick={handleSearch}>Search</button>
+    </div>
+  );
+}
+```
+
+### Filter Management with Redux
+
+```typescript
+import { useUpdateFiltersMutation } from '@/app/redux/services/searchApi';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/app/redux/store';
+
+function FilterPanel() {
+  const [updateFilters] = useUpdateFiltersMutation();
+  const filters = useSelector((state: RootState) => state.filters);
+
+  const handleFilterChange = async (newFilters: any) => {
+    await updateFilters({
+      filters: {
+        fixer_name: newFilters.fixerName,
+        city: newFilters.city,
+        job_type: newFilters.jobType,
+        search_count: filters.searchQuery ? 1 : 0,
+      },
+    });
+  };
+
+  return (
+    <div>
+      {/* Filter UI components */}
+    </div>
+  );
+}
+```
+
+### Tracking Search Patterns
+
+```typescript
+import { useLogSearchMutation } from '@/app/redux/services/searchApi';
+import { useEffect } from 'react';
+
+function SearchAnalytics() {
+  const [logSearch] = useLogSearchMutation();
+
+  useEffect(() => {
+    // Log search pattern on component mount
+    const logInitialSearch = async () => {
+      await logSearch({
+        user_type: 'requester',
+        search_query: '',
+        search_type: 'browse',
+        filters: {
+          fixer_name: '',
+          city: '',
+          job_type: '',
+          search_count: 0,
+        },
+      });
+    };
+
+    logInitialSearch();
+  }, [logSearch]);
+
+  return null; // Analytics component
+}
+```
+
+## Integration with Filter Slice
+
+The Search API works closely with the filter Redux slice:
+
+```typescript
+import { useSelector } from 'react-redux';
+import { RootState } from '@/app/redux/store';
+import { useLogSearchMutation } from '@/app/redux/services/searchApi';
+
+function useSearchWithFilters() {
+  const filters = useSelector((state: RootState) => state.filters);
+  const [logSearch] = useLogSearchMutation();
+
+  const performSearch = async () => {
+    await logSearch({
+      user_type: 'requester',
+      search_query: filters.searchQuery,
+      search_type: 'filtered_search',
+      filters: {
+        fixer_name: filters.selectedFixerNames[0] || '',
+        city: filters.selectedCities[0] || '',
+        job_type: filters.selectedJobTypes[0] || '',
+        search_count: filters.recentSearches.length,
+      },
+    });
+  };
+
+  return { performSearch };
+}
+```
+
+## Cache Management
+
+Both search endpoints invalidate the `'Requester'` cache tag:
+
+```typescript
+invalidatesTags: ['Requester']
+```
+
+<Note>
+Search mutations invalidate requester-related queries to ensure analytics data stays fresh.
+</Note>
+
+## Analytics Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Popular Searches" icon="fire">
+    Track most common search queries
+  </Card>
+  <Card title="Filter Preferences" icon="filter">
+    Understand user filter patterns
+  </Card>
+  <Card title="Search Trends" icon="chart-line">
+    Analyze search trends over time
+  </Card>
+  <Card title="User Behavior" icon="users">
+    Profile user search behavior
+  </Card>
+</CardGroup>
+
+## Related APIs
+
+<CardGroup cols={2}>
+  <Card title="Filter Slice" icon="database" href="/api/slices">
+    Redux filter state management
+  </Card>
+  <Card title="Fixer API" icon="wrench" href="/api/fixer">
+    Search fixer profiles
+  </Card>
+</CardGroup>

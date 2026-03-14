@@ -1,0 +1,371 @@
+---
+title: 'Fixer Dashboard'
+description: 'Manage your fixer profile, job offers, certifications, and business performance'
+---
+
+## Dashboard Overview
+
+The Fixer Dashboard is your central hub for managing your business on Servineo. Access it at `/fixer/dashboard`.
+
+## Dashboard Layout
+
+The dashboard uses a two-column layout with sidebar navigation:
+
+```tsx
+import { useAppSelector } from '@/app/redux/hooks';
+
+export default function FixerDashboardPage() {
+  const { user: reduxUser } = useAppSelector((state) => state.user);
+  const [activeTab, setActiveTab] = useState<Tab>('offers');
+
+  return (
+    <div className='container mx-auto max-w-6xl p-4 space-y-6'>
+      {/* Profile Header */}
+      <ProfileHeader user={user} />
+      
+      <div className='grid grid-cols-1 lg:grid-cols-4 gap-6'>
+        {/* Sidebar Navigation */}
+        <SidebarNav activeTab={activeTab} setActiveTab={setActiveTab} />
+        
+        {/* Main Content */}
+        <MainContent activeTab={activeTab} />
+      </div>
+    </div>
+  );
+}
+```
+
+Implementation: `src/app/[locale]/fixer/dashboard/page.tsx:46`
+
+## Profile Header
+
+The dashboard header displays your profile summary:
+
+```tsx
+<div className='bg-white rounded-2xl shadow-sm border overflow-hidden'>
+  {/* Gradient banner */}
+  <div className='h-32 bg-gradient-to-r from-blue-600 to-blue-400' />
+  
+  <div className='px-6 pb-6'>
+    {/* Profile photo with completion badge */}
+    <div className='relative -mt-12'>
+      <div className='h-24 w-24 rounded-full border-4 border-white'>
+        <Image src={user.url_photo} alt={user.name} fill />
+      </div>
+      {user.fixerProfile === 'completed' && (
+        <div className='absolute bottom-0 right-0 h-6 w-6 bg-green-500 border-2 border-white rounded-full' />
+      )}
+    </div>
+    
+    {/* Name and description */}
+    <h1 className='text-2xl font-bold'>{user.name}</h1>
+    <p className='text-gray-600'>{descriptionValue || 'Sin descripción'}</p>
+  </div>
+</div>
+```
+
+Implementation: `src/app/[locale]/fixer/dashboard/page.tsx:105`
+
+## Editable Description
+
+Fixers can edit their profile description with validation:
+
+```typescript
+import { z } from 'zod';
+
+const descriptionSchema = z.object({
+  description: z
+    .string()
+    .max(255, 'La descripción no puede tener más de 255 caracteres')
+    .min(10, 'La descripción debe tener al menos 10 caracteres')
+    .optional()
+    .or(z.literal('')),
+});
+```
+
+```tsx
+const [editingDescription, setEditingDescription] = useState(false);
+const [descriptionValue, setDescriptionValue] = useState('');
+const [updateDescription] = useUpdateDescriptionMutation();
+
+const handleSaveDescription = async () => {
+  const result = descriptionSchema.safeParse({ description: descriptionValue });
+  
+  if (!result.success) {
+    setDescriptionError(result.error.issues[0].message);
+    return;
+  }
+  
+  await updateDescription({ id: user._id, description: descriptionValue });
+  setEditingDescription(false);
+};
+```
+
+Implementation: `src/app/[locale]/fixer/dashboard/page.tsx:34`
+
+## Contact Information Display
+
+The header shows contact and service details:
+
+```tsx
+<div className='flex flex-wrap gap-4 text-sm text-gray-600'>
+  {/* Email */}
+  {user.email && (
+    <div className='flex items-center gap-1.5'>
+      <Mail className='h-4 w-4 text-blue-600' />
+      <span>{user.email}</span>
+    </div>
+  )}
+  
+  {/* Phone */}
+  {user.telefono && (
+    <div className='flex items-center gap-1.5'>
+      <Phone className='h-4 w-4 text-blue-600' />
+      <span>{user.telefono}</span>
+    </div>
+  )}
+  
+  {/* Location */}
+  <div className='flex items-center gap-1.5'>
+    <MapPin className='h-4 w-4 text-blue-600' />
+    <span>{user.ubicacion?.departamento || 'Bolivia'}</span>
+  </div>
+  
+  {/* National ID */}
+  {user.ci && (
+    <div className='flex items-center gap-1.5'>
+      <IdCard className='h-4 w-4 text-blue-600' />
+      <span>CI: {user.ci}</span>
+    </div>
+  )}
+</div>
+```
+
+Implementation: `src/app/[locale]/fixer/dashboard/page.tsx:196`
+
+## Services and Payment Methods
+
+Display services and accepted payment methods:
+
+```tsx
+{/* Services */}
+{user.servicios && user.servicios.length > 0 && (
+  <div className='flex flex-wrap gap-2'>
+    {user.servicios.map((servicio, index) => (
+      <span
+        key={index}
+        className='px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium'
+      >
+        {servicio}
+      </span>
+    ))}
+  </div>
+)}
+
+{/* Payment methods and vehicle */}
+<div className='flex flex-wrap gap-3'>
+  {user.vehiculo?.hasVehiculo && (
+    <span className='flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 rounded-full'>
+      <Car className='h-3.5 w-3.5' />
+      Vehículo propio
+    </span>
+  )}
+  {user.metodoPago?.hasEfectivo && (
+    <span className='px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full'>
+      <CreditCard className='h-3.5 w-3.5' />
+      Efectivo
+    </span>
+  )}
+  {/* QR and credit card badges */}
+</div>
+```
+
+Implementation: `src/app/[locale]/fixer/dashboard/page.tsx:222`
+
+## Sidebar Navigation
+
+Navigate between different dashboard sections:
+
+```tsx
+type Tab = 'offers' | 'certs' | 'experience' | 'portfolio' | 'location' | 'estadisticas';
+
+<nav className='flex flex-col gap-1'>
+  <button
+    onClick={() => setActiveTab('offers')}
+    className={`flex items-center gap-3 px-4 py-3 rounded-xl ${
+      activeTab === 'offers'
+        ? 'bg-blue-50 text-blue-700 shadow-sm'
+        : 'text-gray-600 hover:bg-gray-50'
+    }`}
+  >
+    <Briefcase className='h-5 w-5' />
+    Ofertas de Trabajo
+  </button>
+  
+  {/* Other tabs: Certifications, Experience, Portfolio, Location, Statistics */}
+</nav>
+```
+
+Implementation: `src/app/[locale]/fixer/dashboard/page.tsx:273`
+
+## Dashboard Sections
+
+### Job Offers Section
+
+Manage your service offerings:
+
+```tsx
+import { JobOffersSection } from '@/Components/fixer/dashboard/JobOffersSection';
+
+{activeTab === 'offers' && <JobOffersSection />}
+```
+
+See full details in [Accepting Jobs](/fixers/accepting-jobs).
+
+Implementation: `src/app/[locale]/fixer/dashboard/page.tsx:349`
+
+### Certifications Section
+
+Manage professional certifications:
+
+```tsx
+import { CertificationsSection } from '@/Components/fixer/dashboard/CertificationsSection';
+
+{activeTab === 'certs' && <CertificationsSection fixerId={user._id} />}
+```
+
+```typescript
+interface ICertification {
+  _id?: string;
+  fixerId: string;
+  name: string;
+  institution: string;
+  issueDate: string;
+  expiryDate?: string;
+  credentialId?: string;
+  credentialUrl?: string;
+}
+```
+
+Implementation: `src/app/[locale]/fixer/dashboard/page.tsx:350`
+
+### Experience Section
+
+Showcase work history:
+
+```tsx
+import { ExperienceSection } from '@/Components/fixer/dashboard/ExperienceSection';
+
+{activeTab === 'experience' && <ExperienceSection fixerId={user._id} />}
+```
+
+```typescript
+interface IExperience {
+  _id?: string;
+  fixerId: string;
+  jobTitle: string;
+  jobType: string;
+  organization: string;
+  isCurrent: boolean;
+  startDate: string;
+  endDate?: string | null;
+}
+```
+
+Implementation: `src/app/[locale]/fixer/dashboard/page.tsx:351`
+
+### Portfolio Section
+
+Display images and videos of your work:
+
+```tsx
+import { PortfolioSection } from '@/Components/fixer/dashboard/PortfolioSection';
+
+{activeTab === 'portfolio' && <PortfolioSection fixerId={user._id} />}
+```
+
+```typescript
+interface IPortfolioItem {
+  _id?: string;
+  fixerId: string;
+  type: 'image' | 'video';
+  url?: string;
+  youtubeUrl?: string | null;
+}
+```
+
+Implementation: `src/app/[locale]/fixer/dashboard/page.tsx:352`
+
+### Location Section
+
+Update your service area:
+
+```tsx
+import { LocationSection } from '@/Components/fixer/dashboard/LocationSection';
+
+{activeTab === 'location' && (
+  <LocationSection
+    fixerId={user._id}
+    currentLocation={{
+      lat: user.workLocation?.lat ?? 0,
+      lng: user.workLocation?.lng ?? 0,
+      direccion: user.workLocation?.direccion || '',
+    }}
+  />
+)}
+```
+
+Implementation: `src/app/[locale]/fixer/dashboard/page.tsx:354`
+
+### Statistics Section
+
+View performance analytics:
+
+```tsx
+import EstadisticasTrabajos from '@/Components/fixer/Fixer-statistics';
+
+{activeTab === 'estadisticas' && <EstadisticasTrabajos />}
+```
+
+Implementation: `src/app/[locale]/fixer/dashboard/page.tsx:353`
+
+## Action Buttons
+
+Quick access to common actions:
+
+```tsx
+<div className='flex gap-2'>
+  {/* View rated jobs */}
+  <button
+    onClick={() => router.push('/es/view-rate-jobs')}
+    className='px-4 py-2 bg-primary hover:bg-blue-800 text-white rounded-full'
+  >
+    Ver trabajos calificados
+  </button>
+  
+  {/* Edit profile */}
+  <button
+    onClick={() => setEditingDescription(true)}
+    className='px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full flex items-center gap-1'
+  >
+    <Edit2 className='h-4 w-4' />
+    Editar Perfil
+  </button>
+</div>
+```
+
+Implementation: `src/app/[locale]/fixer/dashboard/page.tsx:132`
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Accepting Jobs" icon="check-circle" href="/fixers/accepting-jobs">
+    Learn how to create and manage job offers
+  </Card>
+  <Card title="Calendar Management" icon="calendar" href="/fixers/calendar-management">
+    Manage your availability and appointments
+  </Card>
+  <Card title="Building Reputation" icon="star" href="/fixers/building-reputation">
+    Grow your ratings and reviews
+  </Card>
+</CardGroup>

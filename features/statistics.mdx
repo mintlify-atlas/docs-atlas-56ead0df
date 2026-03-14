@@ -1,0 +1,401 @@
+---
+title: Statistics & Analytics
+description: Advanced statistics and analytics dashboard for tracking searches, user behavior, and platform metrics
+---
+
+The Servineo statistics module provides comprehensive analytics for tracking user searches, fixer distributions, job types, and geographic data across different time periods.
+
+## Overview
+
+The statistics dashboard is accessible at `/adminStatistic` and provides real-time analytics with interactive charts and filtering capabilities.
+
+## Statistics API
+
+### API Integration
+
+The statistics system uses Redux Toolkit Query for data fetching:
+
+```typescript
+import { useGetStatisticsQuery } from '@/app/redux/services/dashboardApi';
+
+const { data, error, isLoading, refetch } = useGetStatisticsQuery(selectedPeriod);
+```
+
+Location: `src/app/redux/services/dashboardApi.ts`
+
+### Statistics Response Structure
+
+```typescript
+export interface StatisticsResponse {
+  success: boolean;
+  count: number;
+  period: string;
+  start_date: string;
+  end_date: string;
+  data: SearchDataItem[];
+  filter_statistics: {
+    fixer_name: {
+      'A-C': number;
+      'D-F': number;
+      'G-I': number;
+      'J-L': number;
+      'M-N': number;
+      'O-Q': number;
+      'R-T': number;
+      'U-W': number;
+      'X-Z': number;
+    };
+    city: {
+      Cochabamba: number;
+      'La Paz': number;
+      'Santa Cruz': number;
+      Pando: number;
+      Potosi: number;
+      Sucre: number;
+      Beni: number;
+      Oruro: number;
+      Tarija: number;
+    };
+    job_type: {
+      Carpintero: number;
+      Electricista: number;
+      Plomeria: number;
+      Albañil: number;
+      Mecanico: number;
+      Jardinero: number;
+      Fontanero: number;
+      Pintor: number;
+      Cerrajero: number;
+      Decorador: number;
+    };
+  };
+  user_type_statistics: {
+    visitor: number;
+    requester: number;
+    fixer: number;
+  };
+}
+```
+
+Location: `src/app/redux/services/dashboardApi.ts:8`
+
+## Time Period Filtering
+
+### Available Periods
+
+The statistics can be viewed across three time periods:
+
+- **Weekly (semanal)**: `/searches/semanal`
+- **Monthly (mensual)**: `/searches/month`
+- **Annual (anual)**: `/searches/year`
+
+### Period Selection
+
+```typescript
+const [selectedPeriod, setSelectedPeriod] = useState<'semanal' | 'mensual' | 'anual'>('mensual');
+
+<select
+  value={selectedPeriod}
+  onChange={(e) => setSelectedPeriod(e.target.value as 'semanal' | 'mensual' | 'anual')}
+>
+  <option value='semanal'>{t('periods.weekly')}</option>
+  <option value='mensual'>{t('periods.monthly')}</option>
+  <option value='anual'>{t('periods.yearly')}</option>
+</select>
+```
+
+### Auto-Refetch on Period Change
+
+```typescript
+useEffect(() => {
+  refetch();
+}, [selectedPeriod, refetch]);
+```
+
+Location: `src/app/[locale]/adminStatistic/page.tsx:26`
+
+## Chart Components
+
+### Donut Chart - User Distribution
+
+Displays user type distribution (visitor, requester, fixer):
+
+```tsx
+import { ChartPieDonut } from '@/Components/Statistics-panel/Chart-pie-donut';
+
+const pieData = data ? transformFilterData(data.user_type_statistics) : [];
+
+<ChartPieDonut
+  data={pieData}
+  title={t('charts.userDistribution.title')}
+  description={t('charts.userDistribution.description')}
+/>
+```
+
+#### Donut Chart Implementation
+
+```tsx
+export function ChartPieDonut({ data, title, description }: ChartPieDonutProps) {
+  const dataWithColors = data.map((item, index) => ({
+    ...item,
+    fill: item.fill || ['#FFBB28', '#EF4444', '#60A5FA'][index % 3],
+  }));
+
+  return (
+    <div className='flex flex-col border rounded-lg bg-white shadow-sm p-6'>
+      <PieChart width={250} height={250}>
+        <Tooltip />
+        <Pie
+          data={dataWithColors}
+          dataKey='value'
+          nameKey='name'
+          innerRadius={60}
+          outerRadius={100}
+          paddingAngle={2}
+        />
+      </PieChart>
+    </div>
+  );
+}
+```
+
+Location: `src/Components/Statistics-panel/Chart-pie-donut.tsx:19`
+
+### Bar Chart - Detailed Statistics
+
+Bar charts are used for fixer ranges, cities, and job types:
+
+```tsx
+import { ChartBarLabel } from '@/Components/Statistics-panel/Chart-bar-Label';
+
+// Fixer Name Ranges (A-C, D-F, etc.)
+const monthlyData = data ? transformFilterData(data.filter_statistics?.fixer_name) : [];
+
+<ChartBarLabel
+  data={monthlyData}
+  title={t('charts.fixerRanges.title')}
+  description={t('charts.fixerRanges.description')}
+  color='#2563eb'
+  trendText={t('charts.filterStats')}
+  footerText={t('charts.showingTotal')}
+  barSize={90}
+/>
+```
+
+#### Bar Chart Configuration
+
+```tsx
+export function ChartBarLabel({
+  data,
+  title,
+  description,
+  color = '#2563eb',
+  dataKey = 'value',
+  nameKey = 'name',
+  trendText,
+  footerText,
+  height = 300,
+  barSize = 100,
+}: ChartBarLabelProps) {
+  return (
+    <ResponsiveContainer width='100%' height='100%'>
+      <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+        <CartesianGrid vertical={false} stroke='#f3f4f6' />
+        <XAxis dataKey={nameKey} />
+        <YAxis />
+        <Tooltip content={<CustomTooltip />} />
+        <Bar
+          dataKey={dataKey}
+          fill={color}
+          radius={[4, 4, 0, 0]}
+          barSize={barSize}
+        >
+          <LabelList dataKey={dataKey} position='top' />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+```
+
+Location: `src/Components/Statistics-panel/Chart-bar-Label.tsx:55`
+
+## Statistics Categories
+
+### 1. User Type Statistics
+
+Tracks distribution across user types:
+
+```typescript
+const pieData = data ? transformFilterData(data.user_type_statistics) : [];
+// Returns: [{ name: 'visitor', value: 150 }, { name: 'requester', value: 300 }, ...]
+```
+
+### 2. Fixer Name Ranges
+
+Groups fixers by alphabetical ranges:
+
+```typescript
+const monthlyData = data ? transformFilterData(data.filter_statistics?.fixer_name) : [];
+// Returns: [{ name: 'A-C', value: 45 }, { name: 'D-F', value: 32 }, ...]
+```
+
+Displayed with blue bars (`color='#2563eb'`)
+
+### 3. City Distribution
+
+Tracks searches by Bolivian cities:
+
+```typescript
+const tradesData = data ? transformFilterData(data.filter_statistics?.city) : [];
+// Cities: Cochabamba, La Paz, Santa Cruz, Pando, Potosi, Sucre, Beni, Oruro, Tarija
+```
+
+Displayed with green bars (`color='#10b981'`)
+
+### 4. Job Type Statistics
+
+Breaks down searches by service type:
+
+```typescript
+const productsData = data ? transformFilterData(data.filter_statistics?.job_type) : [];
+// Types: Carpintero, Electricista, Plomeria, Albañil, Mecanico, Jardinero, 
+// Fontanero, Pintor, Cerrajero, Decorador
+```
+
+Displayed with orange bars (`color='#f59e0b'`)
+
+Location: `src/app/[locale]/adminStatistic/page.tsx:40`
+
+## Data Transformation
+
+The statistics data is transformed from the API format to chart-compatible format:
+
+```typescript
+const transformFilterData = (filterData: Record<string, number> | undefined) => {
+  if (!filterData) return [];
+  return Object.entries(filterData).map(([name, value]) => ({
+    name,
+    value: value as number,
+  }));
+};
+```
+
+Location: `src/app/[locale]/adminStatistic/page.tsx:32`
+
+## Loading and Error States
+
+### Loading State
+
+```tsx
+if (isLoading) {
+  return (
+    <main className='flex min-h-screen flex-col items-center justify-center p-4'>
+      <div className='text-lg'>{t('loading')}</div>
+    </main>
+  );
+}
+```
+
+### Error State
+
+```tsx
+if (error) {
+  return (
+    <main className='flex min-h-screen flex-col items-center justify-center p-4'>
+      <div className='text-lg text-red-500'>{t('error')}</div>
+    </main>
+  );
+}
+```
+
+### No Data State
+
+```tsx
+{!data && !isLoading && !error && (
+  <div className='text-center text-gray-500'>{t('noData')}</div>
+)}
+```
+
+Location: `src/app/[locale]/adminStatistic/page.tsx:47`
+
+## Dashboard Navigation
+
+Back to dashboard button:
+
+```tsx
+<Button
+  onClick={() => router.push(`https://servineo-frontend-bytes-bandidos.vercel.app/user-admin/dashboard`)}
+  variant='outline'
+>
+  <svg><!-- Arrow icon --></svg>
+  Volver al Dashboard
+</Button>
+```
+
+Location: `src/app/[locale]/adminStatistic/page.tsx:68`
+
+## Job Activity Logs
+
+A separate statistics API tracks detailed job activity:
+
+```typescript
+export interface JobLog {
+  _id: string;
+  userId: string;
+  date: string;
+  role: 'visitor' | 'requester' | 'fixer';
+  type:
+    | 'login'
+    | 'search'
+    | 'click'
+    | 'review'
+    | 'session_start'
+    | 'session_end'
+    | 'daily_jobs_status';
+  metadata: JobStatusMetadata;
+  timestamp: string;
+}
+
+export interface JobStatusMetadata {
+  completed: number;
+  pending: number;
+  inProgress: number;
+  total: number;
+  collectionDate: string;
+}
+```
+
+### Job Statistics Query
+
+```typescript
+import { useGetJobStatisticsQuery } from '@/app/redux/services/statisticsApi';
+
+const { data: jobLogs } = useGetJobStatisticsQuery();
+// Fetches from: /ActivityReviews
+```
+
+Location: `src/app/redux/services/statisticsApi.ts:11`
+
+## Internationalization
+
+All statistics use translations:
+
+```typescript
+const t = useTranslations('dashboard');
+
+// Example keys:
+t('periods.weekly')
+t('periods.monthly')
+t('periods.yearly')
+t('charts.userDistribution.title')
+t('charts.fixerRanges.title')
+t('charts.cities.title')
+t('charts.jobTypes.title')
+```
+
+## Related Pages
+
+- [Admin Dashboard](/features/admin-dashboard)
+- [User Management](/features/user-management)
+- [Appointments System](/concepts/appointments)

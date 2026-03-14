@@ -1,0 +1,406 @@
+---
+title: 'Scheduling Appointments'
+description: 'Book time slots with fixers using the interactive calendar system'
+icon: 'calendar-days'
+---
+
+## Overview
+
+The calendar system (`/calendar`) allows you to view fixer availability and book appointments directly. This ensures both you and the fixer have confirmed times for service delivery.
+
+## Accessing the Calendar
+
+You can access the calendar in two ways:
+
+1. **From Job Offer Modal** - Click "Schedule Appointment" button
+2. **Direct Navigation** - Go to `/calendar` page
+
+### Setting Session Data
+
+When scheduling from a job offer, the app stores necessary IDs:
+
+```tsx Components/Job-offers/Job-offer-modal.tsx
+const handleClickCalendar = () => {
+  if (typeof window === 'undefined') return;
+  const fixerId = offer.fixerId;
+  const requesterId = sessionStorage.getItem('requester_id') ?? '';
+  sessionStorage.setItem('fixer_id', fixerId);
+  sessionStorage.setItem('requester_id', requesterId);
+  sessionStorage.setItem('roluser', 'requester');
+};
+```
+
+## Calendar Interface
+
+The calendar page adapts based on your device:
+
+<Tabs>
+  <Tab title="Desktop View">
+    Full monthly calendar with:
+    - Week view grid
+    - Month navigation
+    - Time slot details
+    - Appointment overlays
+    
+    ```tsx app/[locale]/calendar/page.tsx
+    <div className='flex justify-center md:block'>
+      <DesktopCalendar />
+    </div>
+    ```
+  </Tab>
+  
+  <Tab title="Mobile View">
+    Optimized mobile interface with:
+    - Compact monthly view
+    - Daily list view
+    - Swipe navigation
+    - Touch-friendly controls
+    
+    ```tsx
+    <div className='flex flex-col md:hidden justify-center gap-4'>
+      <MobileCalendar selectedDate={selectedDate} onSelectDate={handleDataChange} />
+      <MobileList
+        selectedDate={selectedDate}
+        fixerId={fixer_id}
+        requesterId={requester_id}
+        onDateChange={handleDataChange}
+      />
+    </div>
+    ```
+  </Tab>
+</Tabs>
+
+## View Modes
+
+Switch between requester and fixer views to see different perspectives:
+
+```tsx app/[locale]/calendar/page.tsx
+const switchRole = () => {
+  setUserRole((prevRole) => (prevRole === 'requester' ? 'fixer' : 'requester'));
+};
+```
+
+<Note>
+  Switching views helps you understand the fixer's schedule and find mutually available times.
+</Note>
+
+## Understanding Availability
+
+The calendar uses color coding and icons to show time slot status:
+
+### Time Slot States
+
+<CardGroup cols={2}>
+  <Card title="Available" icon="check" color="#10b981">
+    Fixer has marked this time as available for bookings
+  </Card>
+  
+  <Card title="Booked" icon="calendar-check" color="#3b82f6">
+    Time slot is already reserved by you or another requester
+  </Card>
+  
+  <Card title="Unavailable" icon="x" color="#ef4444">
+    Fixer is not available during this time
+  </Card>
+  
+  <Card title="Canceled" icon="ban" color="#6b7280">
+    Previously booked time that was canceled
+  </Card>
+</CardGroup>
+
+### Checking Availability
+
+The calendar loads availability data using hooks:
+
+```tsx app/[locale]/calendar/page.tsx
+const {
+  isHourBookedFixer,
+  isHourBooked,
+  isEnabled,
+  isCanceled,
+  refetch: refetchSixMonths,
+  refetchHour,
+  loading,
+} = useSixMonthsAppointments(fixer_id, today);
+```
+
+## Booking an Appointment
+
+<Steps>
+  <Step title="Select Date">
+    Click on a date in the calendar to view available time slots for that day.
+  </Step>
+  
+  <Step title="Choose Time Slot">
+    Browse available hours and select your preferred start time.
+    
+    - Time slots are typically in 1-hour increments
+    - Check if multiple consecutive slots are needed
+    - Verify the time zone matches your location
+  </Step>
+  
+  <Step title="Confirm Details">
+    Review the appointment information:
+    - Date and time
+    - Fixer name
+    - Service description
+    - Location
+    - Estimated duration
+  </Step>
+  
+  <Step title="Book Appointment">
+    Click the confirm button to finalize the booking.
+    
+    The system will:
+    - Reserve the time slot
+    - Notify the fixer
+    - Send you a confirmation
+    - Add to your appointments list
+  </Step>
+</Steps>
+
+## Calendar Header Controls
+
+### Desktop Header
+
+```tsx app/[locale]/calendar/page.tsx
+<div className='hidden md:flex md:items-center md:ml-auto md:mr-4 md:gap-4'>
+  <button onClick={switchRole}>
+    {t('buttons.currentView', { role: userRole })}
+  </button>
+  
+  {userRole === 'fixer' && (
+    <>
+      <button onClick={handleOpenAvailabilityModal}>
+        {t('buttons.modifyAvailability')}
+      </button>
+      <button onClick={openCancelModal}>
+        {t('buttons.cancelAppointments')}
+      </button>
+    </>
+  )}
+</div>
+```
+
+### Available Actions
+
+- **Switch View** - Toggle between requester and fixer perspectives
+- **Navigate Months** - Move forward/backward through calendar
+- **Today Button** - Jump to current date
+- **Close Calendar** - Return to previous page
+
+## Appointment Context
+
+The calendar uses React Context to manage appointment state:
+
+```tsx app/[locale]/calendar/page.tsx
+const providerValue = useMemo(
+  () => ({
+    isHourBookedFixer,
+    isHourBooked,
+    isEnabled,
+    isCanceled,
+    getAppointmentsForDay,
+    refetchAll,
+    refetchHour,
+    loading,
+  }),
+  [
+    isHourBookedFixer,
+    isHourBooked,
+    isEnabled,
+    isCanceled,
+    refetchAll,
+    refetchHour,
+    getAppointmentsForDay,
+    loading,
+  ],
+);
+```
+
+This context provides:
+- Real-time availability checks
+- Booking status for specific hours
+- Refresh functions to update data
+- Loading states
+
+## Daily Appointments
+
+View all appointments for a specific day:
+
+```tsx
+const { getAppointmentsForDay, refetch: refetchConts } = useDailyConts({
+  date: today,
+  fixer_id,
+});
+```
+
+### Daily View Features
+
+- **Time-ordered List** - Appointments sorted chronologically
+- **Appointment Details** - Name, service, duration
+- **Status Indicators** - Confirmed, pending, completed
+- **Quick Actions** - View details, cancel, reschedule
+
+## Modifying Appointments
+
+### As a Requester
+
+You can:
+
+<AccordionGroup>
+  <Accordion title="View Appointment Details">
+    Click any booked slot to see:
+    - Service description
+    - Fixer contact info
+    - Appointment ID
+    - Booking timestamp
+  </Accordion>
+  
+  <Accordion title="Cancel Appointment">
+    Cancel bookings with proper notice:
+    - Select the appointment
+    - Click cancel button
+    - Confirm cancellation
+    - Fixer receives notification
+    
+    <Warning>
+      Cancellation policies may apply. Check the service terms before canceling.
+    </Warning>
+  </Accordion>
+  
+  <Accordion title="Reschedule">
+    Move an appointment to a different time:
+    - Cancel the current booking
+    - Select new time slot
+    - Book the new appointment
+    - Contact fixer to confirm
+  </Accordion>
+</AccordionGroup>
+
+## Mobile Calendar Features
+
+### Mobile Month View
+
+Compact calendar optimized for small screens:
+
+```tsx Components/calendar/mobile/MobileMonthView.tsx
+<MobileCalendar 
+  selectedDate={selectedDate} 
+  onSelectDate={handleDataChange} 
+/>
+```
+
+- Swipe between months
+- Tap dates to select
+- Visual indicators for appointments
+- Responsive grid layout
+
+### Mobile List View
+
+Scrollable list of appointments:
+
+```tsx Components/list/MobileList.tsx
+<MobileList
+  selectedDate={selectedDate}
+  fixerId={fixer_id}
+  requesterId={requester_id}
+  onDateChange={handleDataChange}
+/>
+```
+
+- Card-based appointment display
+- Easy scrolling through dates
+- Quick action buttons
+- Status badges
+
+## Appointment Notifications
+
+You'll receive notifications for:
+
+- **Booking Confirmed** - When appointment is successfully created
+- **Approaching Appointment** - Reminder 24 hours before
+- **Fixer Confirmation** - When fixer acknowledges the booking
+- **Changes** - If fixer modifies or cancels
+- **Completion** - When service is marked as done
+
+## Calendar State Management
+
+The calendar maintains state using multiple contexts:
+
+```tsx app/[locale]/calendar/page.tsx
+<UserRoleProvider role={userRole} fixer_id={fixer_id} requester_id={requester_id}>
+  <AppointmentsProvider {...providerValue}>
+    <AppointmentsStatusProvider
+      fixerId={fixer_id}
+      requesterId={requester_id}
+      selectedDate={selectedDate}
+    >
+      {/* Calendar components */}
+    </AppointmentsStatusProvider>
+  </AppointmentsProvider>
+</UserRoleProvider>
+```
+
+<Info>
+  The calendar automatically refreshes when you book, cancel, or modify appointments to show the latest availability.
+</Info>
+
+## Best Practices
+
+<Steps>
+  <Step title="Book in Advance">
+    Schedule appointments at least 24-48 hours ahead when possible
+  </Step>
+  
+  <Step title="Check Multiple Dates">
+    Look at several days to find the best mutual availability
+  </Step>
+  
+  <Step title="Confirm Via WhatsApp">
+    Send a quick message to the fixer after booking to confirm details
+  </Step>
+  
+  <Step title="Set Reminders">
+    Add the appointment to your personal calendar with reminders
+  </Step>
+  
+  <Step title="Respect Time Slots">
+    Arrive on time and notify the fixer if you're running late
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="No Available Slots">
+    If you don't see any available times:
+    - Check different dates in the calendar
+    - Contact the fixer directly via WhatsApp
+    - Look for alternative fixers with similar services
+  </Accordion>
+  
+  <Accordion title="Booking Fails">
+    If booking doesn't complete:
+    - Verify you're logged in as a requester
+    - Check your internet connection
+    - Refresh the page and try again
+    - Ensure the time slot is still available
+  </Accordion>
+  
+  <Accordion title="Calendar Not Loading">
+    If calendar won't display:
+    - Clear browser cache
+    - Verify fixer_id is set in sessionStorage
+    - Check console for error messages
+    - Contact support if issue persists
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+After scheduling your appointment:
+
+1. [Track the job status](/requesters/tracking-jobs)
+2. Prepare any necessary materials or access
+3. [Rate the fixer](/requesters/rating-fixers) after completion

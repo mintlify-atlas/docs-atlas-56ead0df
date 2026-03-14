@@ -1,0 +1,277 @@
+---
+title: "Fixer API"
+description: "Service provider profile and job management endpoints"
+icon: "wrench"
+---
+
+## Overview
+
+The Fixer API provides endpoints for retrieving fixer (service provider) profiles and their associated job offers.
+
+**Source**: `~/workspace/source/src/app/redux/services/fixerApi.ts`
+
+## Endpoints
+
+### Get Fixer by ID
+
+Retrieve a specific fixer's profile by ID.
+
+```typescript
+import { useGetFixerByIdQuery } from '@/app/redux/services/fixerApi';
+
+const { data: fixer, isLoading } = useGetFixerByIdQuery('fixer-123');
+```
+
+<ParamField path="id" type="string" required>
+  Fixer profile ID
+</ParamField>
+
+<ResponseField name="fixer" type="IUserProfile">
+  Complete fixer profile including user information and specialties
+</ResponseField>
+
+**Endpoint**: `GET /user-profiles/{id}`
+
+**Cache Tags**: Provides `{ type: 'User', id: userId }`
+
+---
+
+### Get All Fixers
+
+Retrieve all fixers in the system.
+
+```typescript
+import { useGetFixersQuery } from '@/app/redux/services/fixerApi';
+
+const { data: fixers, isLoading, error } = useGetFixersQuery();
+```
+
+<ResponseField name="fixers" type="IUserProfile[]">
+  Array of all fixer profiles
+</ResponseField>
+
+**Endpoint**: `GET /user-profiles/role/fixer`
+
+**Cache Tags**: Provides individual tags for each fixer plus a `LIST` tag
+
+<Note>
+This endpoint automatically filters for users with the 'fixer' role.
+</Note>
+
+---
+
+### Get Jobs by Fixer
+
+Retrieve all job offers created by a specific fixer.
+
+```typescript
+import { useGetJobsByFixerQuery } from '@/app/redux/services/fixerApi';
+
+const { data: jobs } = useGetJobsByFixerQuery('fixer-123');
+```
+
+<ParamField path="fixerId" type="string" required>
+  Fixer user ID
+</ParamField>
+
+<ResponseField name="jobs" type="JobOffer[]">
+  Array of job offers created by the fixer
+</ResponseField>
+
+**Endpoint**: `GET /jobs/fixer/{fixerId}`
+
+**Cache Tags**: Provides individual job tags plus `FIXER-{fixerId}` tag
+
+## Types
+
+### IUserProfile
+
+```typescript
+interface IUserProfile {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    description?: string;
+    workLocation?: {
+      lat: number;
+      lng: number;
+      direccion?: string;
+    };
+  };
+  profile: {
+    role: 'fixer';
+    specialties: string[];
+    hourlyRate?: number;
+    availability?: string;
+    rating?: number;
+    completedJobs?: number;
+  };
+}
+```
+
+### JobOffer
+
+```typescript
+interface JobOffer {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  fixerId: string;
+  price: number;
+  duration?: string;
+  location?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+## Cache Management
+
+The Fixer API uses sophisticated cache tag strategies:
+
+### Individual Fixer Caching
+
+```typescript
+providesTags: (result) => 
+  result ? [{ type: 'User', id: result.user.id }] : []
+```
+
+### List Caching
+
+```typescript
+providesTags: (result) =>
+  result
+    ? [
+        ...result.map(({ user }) => ({ type: 'User' as const, id: user.id })),
+        { type: 'User', id: 'LIST' },
+      ]
+    : [{ type: 'User', id: 'LIST' }]
+```
+
+### Fixer Jobs Caching
+
+```typescript
+providesTags: (result, error, fixerId) =>
+  result
+    ? [
+        ...result.map(({ id }) => ({ type: 'Job' as const, id })),
+        { type: 'Job', id: `FIXER-${fixerId}` },
+      ]
+    : [{ type: 'Job', id: `FIXER-${fixerId}` }]
+```
+
+<Tip>
+The cache tag strategy ensures that:
+- Individual fixer updates invalidate specific queries
+- List updates invalidate all list queries
+- Fixer job updates only affect that fixer's job list
+</Tip>
+
+## Example Usage
+
+### Fixer Profile Page
+
+```typescript
+import { useGetFixerByIdQuery, useGetJobsByFixerQuery } from '@/app/redux/services/fixerApi';
+
+function FixerProfilePage({ fixerId }: { fixerId: string }) {
+  const { data: fixer, isLoading: loadingFixer } = useGetFixerByIdQuery(fixerId);
+  const { data: jobs, isLoading: loadingJobs } = useGetJobsByFixerQuery(fixerId);
+
+  if (loadingFixer) return <div>Loading fixer profile...</div>;
+  if (!fixer) return <div>Fixer not found</div>;
+
+  return (
+    <div>
+      <h1>{fixer.user.name}</h1>
+      <p>{fixer.user.description}</p>
+      <div>
+        <h2>Specialties</h2>
+        <ul>
+          {fixer.profile.specialties.map((specialty) => (
+            <li key={specialty}>{specialty}</li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <h2>Job Offers</h2>
+        {loadingJobs ? (
+          <div>Loading jobs...</div>
+        ) : (
+          <ul>
+            {jobs?.map((job) => (
+              <li key={job.id}>{job.title}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+### Fixer Directory
+
+```typescript
+import { useGetFixersQuery } from '@/app/redux/services/fixerApi';
+
+function FixerDirectory() {
+  const { data: fixers, isLoading, error } = useGetFixersQuery();
+
+  if (isLoading) return <div>Loading fixers...</div>;
+  if (error) return <div>Error loading fixers</div>;
+
+  return (
+    <div className="grid grid-cols-3 gap-4">
+      {fixers?.map((fixer) => (
+        <div key={fixer.user.id} className="border p-4 rounded">
+          <h3>{fixer.user.name}</h3>
+          <p>Rate: ${fixer.profile.hourlyRate}/hr</p>
+          <p>Rating: {fixer.profile.rating}/5</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+### Filtering Fixers by Specialty
+
+```typescript
+import { useGetFixersQuery } from '@/app/redux/services/fixerApi';
+import { useMemo } from 'react';
+
+function FilteredFixers({ specialty }: { specialty: string }) {
+  const { data: fixers } = useGetFixersQuery();
+
+  const filteredFixers = useMemo(
+    () => fixers?.filter((fixer) => 
+      fixer.profile.specialties.includes(specialty)
+    ),
+    [fixers, specialty]
+  );
+
+  return (
+    <div>
+      <h2>{specialty} Specialists</h2>
+      {filteredFixers?.map((fixer) => (
+        <div key={fixer.user.id}>{fixer.user.name}</div>
+      ))}
+    </div>
+  );
+}
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+  <Card title="User API" icon="user" href="/api/user">
+    User profile management
+  </Card>
+  <Card title="Jobs API" icon="briefcase" href="/api/jobs">
+    Job offer management
+  </Card>
+</CardGroup>

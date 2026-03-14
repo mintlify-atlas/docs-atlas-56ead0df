@@ -1,122 +1,151 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Servineo",
+  "theme": "almond",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#3B82F6",
+    "light": "#60A5FA",
+    "dark": "#1E40AF"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/MiguelMendezNoBot/servineo-frontend-bytesBandidos"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/MiguelMendezNoBot/servineo-frontend-bytesBandidos"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Getting Started",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "installation"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
-            ]
-          },
-          {
-            "group": "Writing content",
-            "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "concepts/users-and-roles",
+              "concepts/job-marketplace",
+              "concepts/appointments",
+              "concepts/payments"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "For Requesters",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Getting Started",
             "pages": [
-              "api-reference/introduction"
+              "requesters/overview",
+              "requesters/finding-fixers",
+              "requesters/creating-job-requests"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Managing Jobs",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "requesters/job-offers",
+              "requesters/scheduling-appointments",
+              "requesters/tracking-jobs",
+              "requesters/rating-fixers"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "For Fixers",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "fixers/overview",
+              "fixers/becoming-a-fixer",
+              "fixers/profile-setup"
+            ]
+          },
+          {
+            "group": "Managing Work",
+            "pages": [
+              "fixers/dashboard",
+              "fixers/accepting-jobs",
+              "fixers/calendar-management",
+              "fixers/building-reputation"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Features",
+        "groups": [
+          {
+            "group": "Platform Features",
+            "pages": [
+              "features/search-and-filters",
+              "features/advanced-search",
+              "features/map-integration",
+              "features/internationalization"
+            ]
+          },
+          {
+            "group": "User Features",
+            "pages": [
+              "features/authentication",
+              "features/user-profiles",
+              "features/payment-methods",
+              "features/notifications"
+            ]
+          },
+          {
+            "group": "Admin Features",
+            "pages": [
+              "features/admin-dashboard",
+              "features/statistics",
+              "features/user-management"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/overview",
+              "api/authentication"
+            ]
+          },
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api/user",
+              "api/fixer",
+              "api/jobs",
+              "api/appointments",
+              "api/search"
+            ]
+          },
+          {
+            "group": "Redux State",
+            "pages": [
+              "api/redux-store",
+              "api/slices"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

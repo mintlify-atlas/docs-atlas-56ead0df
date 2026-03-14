@@ -1,0 +1,357 @@
+---
+title: "Jobs API"
+description: "Job offer CRUD operations and status management"
+icon: "briefcase"
+---
+
+## Overview
+
+The Jobs API provides complete CRUD functionality for managing job offers, including creation, retrieval, updates, deletion, and status toggling.
+
+**Source**: `~/workspace/source/src/app/redux/services/jobApi.ts`
+
+## Endpoints
+
+### Get All Jobs
+
+Retrieve all job offers in the system.
+
+```typescript
+import { useGetAllJobsQuery } from '@/app/redux/services/jobApi';
+
+const { data: jobs, isLoading } = useGetAllJobsQuery();
+```
+
+<ResponseField name="jobs" type="IJobOffer[]">
+  Array of all job offers
+</ResponseField>
+
+**Endpoint**: `GET /job-offers`
+
+---
+
+### Get Jobs by Fixer
+
+Retrieve all job offers created by a specific fixer.
+
+```typescript
+import { useGetJobsByFixerQuery } from '@/app/redux/services/jobApi';
+
+const { data: jobs } = useGetJobsByFixerQuery('fixer-123');
+```
+
+<ParamField path="fixerId" type="string" required>
+  Fixer user ID
+</ParamField>
+
+<ResponseField name="jobs" type="IJobOffer[]">
+  Array of job offers created by the specified fixer
+</ResponseField>
+
+**Endpoint**: `GET /job-offers/fixer/{fixerId}`
+
+<Note>
+The response is automatically transformed to extract the `data` array from the API response.
+</Note>
+
+---
+
+### Create Job
+
+Create a new job offer.
+
+```typescript
+import { useCreateJobMutation } from '@/app/redux/services/jobApi';
+
+const [createJob, { isLoading }] = useCreateJobMutation();
+
+const handleCreate = async () => {
+  const formData = new FormData();
+  formData.append('title', 'Plumbing Service');
+  formData.append('description', 'Expert plumbing services');
+  formData.append('price', '75');
+  formData.append('category', 'plumbing');
+  formData.append('fixerId', 'fixer-123');
+  
+  await createJob(formData).unwrap();
+};
+```
+
+<ParamField body="formData" type="FormData" required>
+  Form data containing job offer information
+</ParamField>
+
+<ParamField body="title" type="string" required>
+  Job offer title
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  Detailed job description
+</ParamField>
+
+<ParamField body="price" type="number" required>
+  Job price
+</ParamField>
+
+<ParamField body="category" type="string" required>
+  Job category
+</ParamField>
+
+<ParamField body="fixerId" type="string" required>
+  ID of the fixer creating the job
+</ParamField>
+
+<ResponseField name="job" type="IJobOffer">
+  Created job offer object
+</ResponseField>
+
+**Endpoint**: `POST /job-offers`
+
+---
+
+### Update Job
+
+Update an existing job offer.
+
+```typescript
+import { useUpdateJobMutation } from '@/app/redux/services/jobApi';
+
+const [updateJob] = useUpdateJobMutation();
+
+const handleUpdate = async () => {
+  const formData = new FormData();
+  formData.append('title', 'Updated Title');
+  formData.append('price', '85');
+  
+  await updateJob({
+    jobId: 'job-123',
+    formData,
+  }).unwrap();
+};
+```
+
+<ParamField path="jobId" type="string" required>
+  Job offer ID to update
+</ParamField>
+
+<ParamField body="formData" type="Partial<FormData>" required>
+  Form data with fields to update
+</ParamField>
+
+<ResponseField name="job" type="IJobOffer">
+  Updated job offer object
+</ResponseField>
+
+**Endpoint**: `PATCH /job-offers/{jobId}`
+
+---
+
+### Delete Job
+
+Delete a job offer.
+
+```typescript
+import { useDeleteJobMutation } from '@/app/redux/services/jobApi';
+
+const [deleteJob] = useDeleteJobMutation();
+
+await deleteJob({
+  jobId: 'job-123',
+  fixerId: 'fixer-123',
+}).unwrap();
+```
+
+<ParamField path="jobId" type="string" required>
+  Job offer ID to delete
+</ParamField>
+
+<ParamField body="fixerId" type="string" required>
+  ID of the fixer who owns the job
+</ParamField>
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+**Endpoint**: `DELETE /job-offers/{jobId}`
+
+---
+
+### Toggle Job Status
+
+Activate or deactivate a job offer.
+
+```typescript
+import { useToggleJobStatusMutation } from '@/app/redux/services/jobApi';
+
+const [toggleStatus] = useToggleJobStatusMutation();
+
+await toggleStatus({ jobId: 'job-123' }).unwrap();
+```
+
+<ParamField path="jobId" type="string" required>
+  Job offer ID
+</ParamField>
+
+<ResponseField name="job" type="IJobOffer">
+  Updated job offer with toggled status
+</ResponseField>
+
+**Endpoint**: `PATCH /job-offers/{jobId}/toggle-status`
+
+<Tip>
+This endpoint automatically toggles between active and inactive states. Use it to pause/resume job offers.
+</Tip>
+
+## Types
+
+### IJobOffer
+
+```typescript
+interface IJobOffer {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  category: string;
+  fixerId: string;
+  duration?: string;
+  location?: string;
+  images?: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+### ApiResponse
+
+```typescript
+interface ApiResponse {
+  data: IJobOffer[];
+  count: number;
+  success?: boolean;
+}
+```
+
+## Cache Management
+
+All job endpoints use the `'Job'` cache tag:
+
+```typescript
+// Queries provide Job tags
+providesTags: ['Job']
+
+// Mutations invalidate Job cache
+invalidatesTags: ['Job']
+```
+
+<Note>
+Any mutation (create, update, delete, toggle) automatically invalidates all job queries, ensuring fresh data.
+</Note>
+
+## Example Usage
+
+### Complete Job Management Component
+
+```typescript
+import {
+  useGetAllJobsQuery,
+  useCreateJobMutation,
+  useUpdateJobMutation,
+  useDeleteJobMutation,
+  useToggleJobStatusMutation,
+} from '@/app/redux/services/jobApi';
+
+function JobManager() {
+  const { data: jobs, isLoading } = useGetAllJobsQuery();
+  const [createJob] = useCreateJobMutation();
+  const [updateJob] = useUpdateJobMutation();
+  const [deleteJob] = useDeleteJobMutation();
+  const [toggleStatus] = useToggleJobStatusMutation();
+
+  const handleCreate = async (jobData: any) => {
+    const formData = new FormData();
+    Object.entries(jobData).forEach(([key, value]) => {
+      formData.append(key, value as string);
+    });
+    
+    await createJob(formData).unwrap();
+  };
+
+  const handleToggle = async (jobId: string) => {
+    await toggleStatus({ jobId }).unwrap();
+  };
+
+  const handleDelete = async (jobId: string, fixerId: string) => {
+    if (confirm('Delete this job?')) {
+      await deleteJob({ jobId, fixerId }).unwrap();
+    }
+  };
+
+  if (isLoading) return <div>Loading...</div>;
+
+  return (
+    <div>
+      <h1>Job Offers</h1>
+      {jobs?.map((job) => (
+        <div key={job.id}>
+          <h3>{job.title}</h3>
+          <p>{job.description}</p>
+          <p>${job.price}</p>
+          <button onClick={() => handleToggle(job.id)}>
+            {job.isActive ? 'Deactivate' : 'Activate'}
+          </button>
+          <button onClick={() => handleDelete(job.id, job.fixerId)}>
+            Delete
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+### Fixer's Job Dashboard
+
+```typescript
+import { useGetJobsByFixerQuery } from '@/app/redux/services/jobApi';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/app/redux/store';
+
+function MyJobs() {
+  const user = useSelector((state: RootState) => state.user.user);
+  const { data: jobs, isLoading } = useGetJobsByFixerQuery(user?.id || '');
+
+  const activeJobs = jobs?.filter((job) => job.isActive);
+  const inactiveJobs = jobs?.filter((job) => !job.isActive);
+
+  return (
+    <div>
+      <div>
+        <h2>Active Jobs ({activeJobs?.length})</h2>
+        {activeJobs?.map((job) => (
+          <div key={job.id}>{job.title}</div>
+        ))}
+      </div>
+      <div>
+        <h2>Inactive Jobs ({inactiveJobs?.length})</h2>
+        {inactiveJobs?.map((job) => (
+          <div key={job.id}>{job.title}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+  <Card title="Fixer API" icon="wrench" href="/api/fixer">
+    Fixer profile management
+  </Card>
+  <Card title="Job Slices" icon="database" href="/api/slices">
+    Job state management
+  </Card>
+</CardGroup>

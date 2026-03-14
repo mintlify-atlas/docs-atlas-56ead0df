@@ -1,0 +1,285 @@
+---
+title: "User API"
+description: "User profile management and role conversion endpoints"
+icon: "user"
+---
+
+## Overview
+
+The User API provides endpoints for managing user profiles, updating user information, and converting users between roles.
+
+**Source**: `~/workspace/source/src/app/redux/services/userApi.ts`
+
+## Endpoints
+
+### Create User Profile
+
+Create a new user profile.
+
+```typescript
+const [createUserProfile] = useCreateUserProfileMutation();
+
+await createUserProfile({
+  user: { id: '123', name: 'John Doe', email: 'john@example.com' },
+  profile: { role: 'requester' },
+}).unwrap();
+```
+
+<ParamField body="user" type="IUser" required>
+  User object containing basic user information
+</ParamField>
+
+<ParamField body="profile" type="object" required>
+  Profile information including role and preferences
+</ParamField>
+
+<ResponseField name="IUserProfile" type="object">
+  Complete user profile object
+</ResponseField>
+
+---
+
+### Get User Profiles
+
+Retrieve all user profiles.
+
+```typescript
+const { data: profiles } = useGetUserProfilesQuery();
+```
+
+<ResponseField name="profiles" type="IUserProfile[]">
+  Array of all user profiles
+</ResponseField>
+
+---
+
+### Update User Description
+
+Update a user's description.
+
+```typescript
+const [updateDescription] = useUpdateDescriptionMutation();
+
+await updateDescription({
+  id: 'user-123',
+  description: 'Experienced plumber with 10+ years',
+}).unwrap();
+```
+
+<ParamField path="id" type="string" required>
+  User ID
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  New user description
+</ParamField>
+
+<ResponseField name="user" type="IUser">
+  Updated user object
+</ResponseField>
+
+---
+
+### Get Users by Role
+
+Retrieve users filtered by role.
+
+```typescript
+const { data: fixers } = useGetUsersByRoleQuery('fixer');
+```
+
+<ParamField path="role" type="string" required>
+  User role: `'requester'`, `'fixer'`, or `'admin'`
+</ParamField>
+
+<ResponseField name="users" type="IUserProfile[]">
+  Array of user profiles matching the specified role
+</ResponseField>
+
+---
+
+### Convert to Fixer
+
+Convert a requester user to a fixer.
+
+```typescript
+const [convertToFixer] = useConvertToFixerMutation();
+
+await convertToFixer({
+  id: 'user-123',
+  profile: {
+    specialties: ['plumbing', 'electrical'],
+    hourlyRate: 50,
+    availability: 'weekdays',
+  },
+}).unwrap();
+```
+
+<ParamField path="id" type="string" required>
+  User ID to convert
+</ParamField>
+
+<ParamField body="profile" type="object" required>
+  Fixer profile information including specialties and rates
+</ParamField>
+
+<ResponseField name="userProfile" type="IUserProfile">
+  Updated user profile with fixer role
+</ResponseField>
+
+---
+
+### Get User by ID
+
+Retrieve a specific user by ID.
+
+```typescript
+const { data: user } = useGetUserByIdQuery('user-123');
+// Or lazy query
+const [trigger, result] = useLazyGetUserByIdQuery();
+```
+
+<ParamField path="id" type="string" required>
+  User ID
+</ParamField>
+
+<ResponseField name="user" type="IUser">
+  User object with all details
+</ResponseField>
+
+---
+
+### Update User Location
+
+Update a user's work location coordinates.
+
+```typescript
+const [updateLocation] = useUpdateLocationMutation();
+
+await updateLocation({
+  id: 'user-123',
+  location: {
+    lat: 40.7128,
+    lng: -74.0060,
+    direccion: '123 Main St, New York, NY',
+  },
+}).unwrap();
+```
+
+<ParamField path="id" type="string" required>
+  User ID
+</ParamField>
+
+<ParamField body="location.lat" type="number" required>
+  Latitude coordinate
+</ParamField>
+
+<ParamField body="location.lng" type="number" required>
+  Longitude coordinate
+</ParamField>
+
+<ParamField body="location.direccion" type="string">
+  Optional formatted address
+</ParamField>
+
+<ResponseField name="success" type="boolean">
+  Operation success status
+</ResponseField>
+
+<ResponseField name="user" type="IUser">
+  Updated user object
+</ResponseField>
+
+## Types
+
+### IUser
+
+```typescript
+interface IUser {
+  id: string;
+  name: string;
+  email: string;
+  description?: string;
+  workLocation?: {
+    lat: number;
+    lng: number;
+    direccion?: string;
+  };
+}
+```
+
+### IUserProfile
+
+```typescript
+interface IUserProfile {
+  user: IUser;
+  profile: {
+    role: 'requester' | 'fixer' | 'admin';
+    specialties?: string[];
+    hourlyRate?: number;
+    availability?: string;
+  };
+}
+```
+
+## Cache Management
+
+All user endpoints use the `'User'` cache tag for automatic invalidation:
+
+```typescript
+// Mutations automatically invalidate User cache
+invalidatesTags: ['User']
+
+// Queries provide User cache tags
+providesTags: ['User']
+```
+
+## Example Usage
+
+### Complete User Profile Update
+
+```typescript
+import {
+  useGetUserByIdQuery,
+  useUpdateDescriptionMutation,
+  useUpdateLocationMutation,
+} from '@/app/redux/services/userApi';
+
+function UserProfileEditor({ userId }: { userId: string }) {
+  const { data: user, isLoading } = useGetUserByIdQuery(userId);
+  const [updateDescription] = useUpdateDescriptionMutation();
+  const [updateLocation] = useUpdateLocationMutation();
+
+  const handleSave = async () => {
+    await updateDescription({
+      id: userId,
+      description: 'Updated description',
+    });
+
+    await updateLocation({
+      id: userId,
+      location: { lat: 40.7128, lng: -74.0060 },
+    });
+  };
+
+  if (isLoading) return <div>Loading...</div>;
+
+  return (
+    <div>
+      <h1>{user?.name}</h1>
+      <button onClick={handleSave}>Save Changes</button>
+    </div>
+  );
+}
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+  <Card title="Fixer API" icon="wrench" href="/api/fixer">
+    Fixer-specific profile management
+  </Card>
+  <Card title="User Slice" icon="database" href="/api/slices">
+    User state management
+  </Card>
+</CardGroup>

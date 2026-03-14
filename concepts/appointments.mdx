@@ -1,0 +1,355 @@
+---
+title: Appointments
+description: Scheduling and managing appointments between requesters and fixers
+---
+
+Servineo's appointment system allows requesters and fixers to schedule, track, and manage service appointments with detailed timing and location information.
+
+## Appointment Model
+
+The appointment structure is defined in `src/types/job-request.ts` and `src/services/appointments.ts`:
+
+```typescript
+export interface Appointment {
+  _id: string;
+  id_fixer: string;
+  id_requester: string;
+  selected_date: { $date: string };
+  current_requester_name: string;
+  appointment_type: string;
+  appointment_description: string;
+  link_id: string;
+  current_requester_phone: string;
+  starting_time: { $date: string };
+  finishing_time: { $date: string };
+  schedule_state: string;
+  display_name_location: string;
+  lat: string | null;
+  lon: string | null;
+  cancelled_fixer: boolean;
+  reprogram_reason: string;
+  createdAt: { $date: string };
+  updatedAt: { $date: string };
+}
+```
+
+## Core Fields
+
+<ParamField path="id_fixer" type="string" required>
+  The ID of the fixer providing the service
+</ParamField>
+
+<ParamField path="id_requester" type="string" required>
+  The ID of the requester who booked the appointment
+</ParamField>
+
+<ParamField path="selected_date" type="object" required>
+  The date selected for the appointment in MongoDB date format: `{ $date: string }`
+</ParamField>
+
+<ParamField path="starting_time" type="object" required>
+  Appointment start time: `{ $date: string }`
+</ParamField>
+
+<ParamField path="finishing_time" type="object" required>
+  Appointment end time: `{ $date: string }`
+</ParamField>
+
+<ParamField path="appointment_type" type="string" required>
+  Type of service (e.g., "plumbing", "electrical", "carpentry")
+</ParamField>
+
+<ParamField path="appointment_description" type="string">
+  Detailed description of the work to be performed
+</ParamField>
+
+## Location Information
+
+Appointments include detailed location data:
+
+<ResponseField name="display_name_location" type="string">
+  Human-readable address for the appointment location
+</ResponseField>
+
+<ResponseField name="lat" type="string | null">
+  Latitude coordinate for the appointment location
+</ResponseField>
+
+<ResponseField name="lon" type="string | null">
+  Longitude coordinate for the appointment location
+</ResponseField>
+
+<Note>
+  Location coordinates can be null if the requester hasn't provided GPS data
+</Note>
+
+## Appointment States
+
+The `schedule_state` field tracks the appointment lifecycle:
+
+<Steps>
+  <Step title="scheduled">
+    Appointment is confirmed and scheduled for the future
+  </Step>
+  
+  <Step title="in_progress">
+    The fixer has started working on the appointment
+  </Step>
+  
+  <Step title="completed">
+    Work has been finished
+  </Step>
+  
+  <Step title="cancelled">
+    Appointment was cancelled by either party
+  </Step>
+  
+  <Step title="rescheduled">
+    Appointment time was changed
+  </Step>
+</Steps>
+
+## Cancellation and Rescheduling
+
+<AccordionGroup>
+  <Accordion title="Cancellation">
+    Either party can cancel an appointment. The `cancelled_fixer` boolean indicates if the fixer initiated the cancellation:
+    
+    ```typescript
+    cancelled_fixer: boolean  // true if fixer cancelled
+    ```
+  </Accordion>
+  
+  <Accordion title="Rescheduling">
+    When an appointment is rescheduled, the reason is tracked:
+    
+    ```typescript
+    reprogram_reason: string  // Reason for rescheduling
+    ```
+    
+    Common reasons include:
+    - Emergency
+    - Weather conditions
+    - Client request
+    - Fixer unavailability
+  </Accordion>
+</AccordionGroup>
+
+## Fetching Appointments
+
+The appointments service provides methods to retrieve appointments:
+
+```typescript
+import { getAppointmentsByFixerId } from '@/services/appointments';
+
+// Fetch all appointments for a fixer
+const appointments = await getAppointmentsByFixerId('fixer-id-here');
+
+console.log(`Found ${appointments.length} appointments`);
+```
+
+### API Endpoint
+
+<CodeGroup>
+```typescript React Hook
+import { useEffect, useState } from 'react';
+import { getAppointmentsByFixerId } from '@/services/appointments';
+
+function FixerAppointments({ fixerId }) {
+  const [appointments, setAppointments] = useState([]);
+
+  useEffect(() => {
+    async function loadAppointments() {
+      const data = await getAppointmentsByFixerId(fixerId);
+      setAppointments(data);
+    }
+    loadAppointments();
+  }, [fixerId]);
+
+  return (
+    <div>
+      {appointments.map(apt => (
+        <div key={apt._id}>
+          <h3>{apt.appointment_type}</h3>
+          <p>{apt.appointment_description}</p>
+          <time>{new Date(apt.starting_time.$date).toLocaleString()}</time>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+```typescript Server Component
+import { getAppointmentsByFixerId } from '@/services/appointments';
+
+export default async function AppointmentsPage({ params }) {
+  const appointments = await getAppointmentsByFixerId(params.fixerId);
+  
+  return (
+    <div>
+      <h1>Appointments</h1>
+      {appointments.map(apt => (
+        <div key={apt._id}>
+          {apt.appointment_type} - {apt.schedule_state}
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+</CodeGroup>
+
+## Integration with Job Requests
+
+Appointments are often created from job requests. The connection is maintained through optional fields:
+
+```typescript
+export interface CreateJobRequestPayload {
+  title: string;
+  description: string;
+  location: {
+    type: 'Point';
+    coordinates: [string, string];
+  };
+  startTime: string;
+  endTime: string;
+  price: string | number;
+  fixerId: string;
+  requesterId: string;
+  appointmentId?: string;  // Links to existing appointment
+  offerId?: string;        // Links to job offer
+}
+```
+
+<Info>
+  When creating a job request from an appointment, include the `appointmentId` to maintain the relationship
+</Info>
+
+## Tracking API
+
+The Redux store provides an API for tracking appointments:
+
+```typescript
+import { trackingAppointmentsApi } from '@/app/redux/services/trackingAppointmentsApi';
+
+// Track appointment status changes
+// Update appointment location
+// Monitor appointment progress
+```
+
+## Date Format Handling
+
+Appointments use MongoDB's date format. Here's how to work with it:
+
+```typescript
+// Parse MongoDB date
+const startDate = new Date(appointment.starting_time.$date);
+const endDate = new Date(appointment.finishing_time.$date);
+
+// Calculate duration
+const durationMs = endDate.getTime() - startDate.getTime();
+const durationHours = durationMs / (1000 * 60 * 60);
+
+// Format for display
+const formattedStart = startDate.toLocaleDateString('es-BO', {
+  weekday: 'long',
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit'
+});
+```
+
+## Contact Information
+
+Appointments include contact details for coordination:
+
+<ResponseField name="current_requester_name" type="string">
+  The requester's name at the time of booking
+</ResponseField>
+
+<ResponseField name="current_requester_phone" type="string">
+  The requester's phone number for direct contact
+</ResponseField>
+
+<ResponseField name="link_id" type="string">
+  A unique identifier for sharing the appointment
+</ResponseField>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Confirm Before Arrival" icon="phone">
+    Fixers should contact the requester before heading to the appointment location
+  </Card>
+  
+  <Card title="Update Status Promptly" icon="clock">
+    Keep `schedule_state` updated so both parties know the current status
+  </Card>
+  
+  <Card title="Provide Clear Reasons" icon="message">
+    When cancelling or rescheduling, always provide a clear `reprogram_reason`
+  </Card>
+  
+  <Card title="Validate Locations" icon="map-pin">
+    Verify that lat/lon coordinates are valid before displaying on maps
+  </Card>
+</CardGroup>
+
+<Warning>
+  Always handle the case where `lat` or `lon` might be null. Not all users enable location services.
+</Warning>
+
+## Example: Displaying Appointments
+
+```typescript
+import { getAppointmentsByFixerId } from '@/services/appointments';
+
+type AppointmentCardProps = {
+  appointment: Appointment;
+};
+
+function AppointmentCard({ appointment }: AppointmentCardProps) {
+  const startTime = new Date(appointment.starting_time.$date);
+  const endTime = new Date(appointment.finishing_time.$date);
+  
+  return (
+    <div className="border rounded-lg p-4">
+      <h3 className="font-bold">{appointment.appointment_type}</h3>
+      <p className="text-gray-600">{appointment.appointment_description}</p>
+      
+      <div className="mt-2">
+        <p><strong>When:</strong> {startTime.toLocaleDateString()}</p>
+        <p><strong>Time:</strong> {startTime.toLocaleTimeString()} - {endTime.toLocaleTimeString()}</p>
+        <p><strong>Where:</strong> {appointment.display_name_location}</p>
+        <p><strong>Status:</strong> {appointment.schedule_state}</p>
+      </div>
+      
+      <div className="mt-2 text-sm">
+        <p><strong>Contact:</strong> {appointment.current_requester_name}</p>
+        <p><strong>Phone:</strong> {appointment.current_requester_phone}</p>
+      </div>
+      
+      {appointment.cancelled_fixer && (
+        <div className="mt-2 p-2 bg-red-100 text-red-700 rounded">
+          Cancelled by fixer: {appointment.reprogram_reason}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Job Marketplace" icon="store" href="/concepts/job-marketplace">
+    Learn how appointments connect to job requests
+  </Card>
+  
+  <Card title="Payments" icon="credit-card" href="/concepts/payments">
+    Process payments after appointment completion
+  </Card>
+</CardGroup>

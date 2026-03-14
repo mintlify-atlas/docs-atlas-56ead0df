@@ -1,0 +1,161 @@
+---
+title: "Appointments API"
+description: "Appointment scheduling and management endpoints"
+icon: "calendar"
+---
+
+## Overview
+
+The Appointments API manages scheduling between requesters and fixers. This API handles appointment creation, updates, and status management.
+
+<Info>
+Appointments API endpoints are currently in development. This documentation will be updated as endpoints become available.
+</Info>
+
+## Planned Endpoints
+
+### Create Appointment
+
+Schedule a new appointment between a requester and a fixer.
+
+```typescript
+// Coming soon
+const [createAppointment] = useCreateAppointmentMutation();
+
+await createAppointment({
+  requesterId: 'user-123',
+  fixerId: 'fixer-456',
+  jobOfferId: 'job-789',
+  scheduledDate: '2026-03-20T10:00:00Z',
+  duration: 60, // minutes
+  location: '123 Main St',
+}).unwrap();
+```
+
+<ParamField body="requesterId" type="string" required>
+  ID of the user requesting the service
+</ParamField>
+
+<ParamField body="fixerId" type="string" required>
+  ID of the fixer providing the service
+</ParamField>
+
+<ParamField body="jobOfferId" type="string" required>
+  Related job offer ID
+</ParamField>
+
+<ParamField body="scheduledDate" type="string" required>
+  ISO 8601 date-time string
+</ParamField>
+
+<ParamField body="duration" type="number" required>
+  Appointment duration in minutes
+</ParamField>
+
+<ParamField body="location" type="string" required>
+  Appointment location address
+</ParamField>
+
+---
+
+### Get Appointments
+
+Retrieve appointments for a user.
+
+```typescript
+// Coming soon
+const { data: appointments } = useGetAppointmentsQuery({
+  userId: 'user-123',
+  status: 'pending',
+});
+```
+
+---
+
+### Update Appointment Status
+
+Update appointment status (pending, confirmed, completed, cancelled).
+
+```typescript
+// Coming soon
+const [updateStatus] = useUpdateAppointmentStatusMutation();
+
+await updateStatus({
+  appointmentId: 'appt-123',
+  status: 'confirmed',
+}).unwrap();
+```
+
+---
+
+### Cancel Appointment
+
+Cancel a scheduled appointment.
+
+```typescript
+// Coming soon
+const [cancelAppointment] = useCancelAppointmentMutation();
+
+await cancelAppointment({
+  appointmentId: 'appt-123',
+  reason: 'Schedule conflict',
+}).unwrap();
+```
+
+## Planned Types
+
+### IAppointment
+
+```typescript
+interface IAppointment {
+  id: string;
+  requesterId: string;
+  fixerId: string;
+  jobOfferId: string;
+  scheduledDate: string;
+  duration: number;
+  location: string;
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+### AppointmentStatus
+
+```typescript
+type AppointmentStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+```
+
+## Future Features
+
+<CardGroup cols={2}>
+  <Card title="Calendar Integration" icon="calendar-days">
+    Sync appointments with external calendars
+  </Card>
+  <Card title="Notifications" icon="bell">
+    Automatic reminders for upcoming appointments
+  </Card>
+  <Card title="Availability Management" icon="clock">
+    Fixer availability scheduling
+  </Card>
+  <Card title="Recurring Appointments" icon="repeat">
+    Support for recurring service appointments
+  </Card>
+</CardGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Jobs API" icon="briefcase" href="/api/jobs">
+    Job offer management
+  </Card>
+  <Card title="User API" icon="user" href="/api/user">
+    User management
+  </Card>
+</CardGroup>
+
+<Note>
+This API is planned for implementation in a future release. Check back for updates or contribute to the development.
+</Note>

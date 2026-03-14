@@ -1,0 +1,391 @@
+---
+title: Payments
+description: Processing payments for completed jobs in Servineo
+---
+
+Servineo's payment system handles transactions between requesters and fixers, supporting multiple payment methods including cash, QR codes, and credit cards.
+
+## Payment Status Flow
+
+Payments progress through several states defined in `src/utils/types.ts`:
+
+```typescript
+export type PaymentStatus = 'pending' | 'paid' | 'failed';
+```
+
+<Steps>
+  <Step title="pending">
+    Payment has been initiated but not yet confirmed
+  </Step>
+  
+  <Step title="paid">
+    Payment successfully processed and confirmed
+  </Step>
+  
+  <Step title="failed">
+    Payment failed or was rejected
+  </Step>
+</Steps>
+
+## Payment Summary
+
+The core payment summary interface is defined in `src/utils/types.ts`:
+
+```typescript
+export interface PaymentSummary {
+  id: string;
+  code: string | null;        // Payment verification code
+  status: PaymentStatus;
+  amount: {
+    total: number;
+    currency: string;          // 'BOB' or 'USD'
+  };
+  codeExpired?: boolean;       // Whether payment code has expired
+  codeExpiresAt?: string;      // Expiration timestamp
+  createdAt?: string;
+}
+```
+
+## Payment Methods
+
+Servineo supports three primary payment methods:
+
+<CardGroup cols={3}>
+  <Card title="Cash" icon="money-bill">
+    In-person cash payment with verification code
+  </Card>
+  
+  <Card title="QR Code" icon="qrcode">
+    QR-based digital payment (Tigomoney, etc.)
+  </Card>
+  
+  <Card title="Credit Card" icon="credit-card">
+    Online card payment processing
+  </Card>
+</CardGroup>
+
+## Creating Payments
+
+The payment service is defined in `src/app/[locale]/payment/service/payment.ts`:
+
+```typescript
+import { createCashPayment } from '@/app/[locale]/payment/service/payment';
+
+const payment = await createCashPayment({
+  jobId: 'job-123',
+  requesterId: 'requester-456',
+  fixerId: 'fixer-789',
+  subTotal: 150,
+  service_fee: 15,          // 10% platform fee
+  discount: 0,
+  currency: 'BOB',
+  paymentMethods: 'cash',
+  commissionRate: 0.1       // 10% commission
+});
+```
+
+### Payment Payload
+
+<ParamField path="jobId" type="string" required>
+  The job request ID this payment is for
+</ParamField>
+
+<ParamField path="requesterId" type="string">
+  ID of the user making the payment
+</ParamField>
+
+<ParamField path="fixerId" type="string">
+  ID of the fixer receiving payment
+</ParamField>
+
+<ParamField path="subTotal" type="number" required>
+  Base payment amount before fees
+</ParamField>
+
+<ParamField path="service_fee" type="number" default="0">
+  Platform service fee (typically 10% of subtotal)
+</ParamField>
+
+<ParamField path="discount" type="number" default="0">
+  Any discounts or promotions applied
+</ParamField>
+
+<ParamField path="currency" type="'BOB' | 'USD'" default="BOB">
+  Payment currency (Bolivianos or US Dollars)
+</ParamField>
+
+<ParamField path="paymentMethods" type="'cash' | 'qr' | 'card'" default="cash">
+  The payment method being used
+</ParamField>
+
+<ParamField path="commissionRate" type="number" default="0.1">
+  Commission rate as a decimal (0.1 = 10%)
+</ParamField>
+
+## Fetching Payment Status
+
+Retrieve payment information using the payment service:
+
+<CodeGroup>
+```typescript By Payment ID
+import { getPaymentSummaryById } from '@/app/[locale]/payment/service/payment';
+
+const summary = await getPaymentSummaryById('payment-id-123');
+
+console.log(summary);
+// {
+//   id: 'payment-id-123',
+//   status: 'pending',
+//   code: 'ABC123',
+//   amount: { total: 165, currency: 'BOB' },
+//   expiresAt: '2024-03-15T15:30:00Z'
+// }
+```
+
+```typescript By Job ID
+import { getLastPaymentSummaryByJob } from '@/app/[locale]/payment/service/payment';
+
+const summary = await getLastPaymentSummaryByJob('job-id-456');
+
+// Returns the most recent payment for this job
+```
+</CodeGroup>
+
+## Confirming Payments
+
+For cash and QR payments, confirmation requires a verification code:
+
+```typescript
+import { confirmPayment } from '@/app/[locale]/payment/service/payment';
+
+try {
+  const result = await confirmPayment('payment-id-123', 'ABC123');
+  
+  console.log(result);
+  // {
+  //   message: 'Payment confirmed successfully',
+  //   data: {
+  //     id: 'payment-id-123',
+  //     total: 165,
+  //     status: 'paid',
+  //     paidAt: '2024-03-15T14:25:00Z'
+  //   }
+  // }
+} catch (error) {
+  console.error('Payment confirmation failed:', error.message);
+}
+```
+
+<Warning>
+  Payment codes expire after a set time period. Check `codeExpired` and `codeExpiresAt` before attempting confirmation.
+</Warning>
+
+## Work/Job Payment Structure
+
+The `Trabajo` interface represents a job with payment information:
+
+```typescript
+export interface Trabajo {
+  jobId: string;
+  titulo: string;
+  descripcion: string;
+  totalPagar: number;
+  paymentStatus: PaymentStatus;
+  fecha: string;
+}
+```
+
+## Payment UI Components
+
+Servineo provides payment UI components in `src/app/[locale]/payment/components/`:
+
+<Accordion title="PaymentMethodUI">
+  Generic payment method selection interface
+  
+  Location: `src/app/[locale]/payment/components/PaymentMethodUI.tsx`
+</Accordion>
+
+<Accordion title="PaymentMethodCashFixer">
+  Cash payment interface for fixers
+  
+  ```typescript
+  interface PaymentMethodCashFixerProps {
+    trabajo: Trabajo;
+    onClose: (completed?: boolean) => void;
+    onBack: (options?: { refresh?: boolean }) => void;
+  }
+  ```
+  
+  Location: `src/app/[locale]/payment/components/PaymentMethodCashFixer.tsx`
+</Accordion>
+
+<Accordion title="CardList & AddCardModal">
+  Credit card management components
+  
+  - `CardList.tsx` - Display saved cards
+  - `AddCardModal.tsx` - Add new credit cards
+</Accordion>
+
+## Fixer Wallet
+
+Fixers have a digital wallet to manage their earnings. The wallet page is located at:
+
+```typescript
+// src/app/[locale]/payment/FixerWallet/page.tsx
+import WalletDashboardClient from '@/Components/payment/WalletDashboardClient';
+
+export default function FixerWalletPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <WalletDashboardClient />
+    </Suspense>
+  );
+}
+```
+
+### Wallet Features
+
+<CardGroup cols={2}>
+  <Card title="View Balance" icon="wallet">
+    Check current wallet balance and pending payments
+  </Card>
+  
+  <Card title="Recharge" icon="plus">
+    Add funds to the wallet via bank transfer or card
+  </Card>
+  
+  <Card title="Transaction History" icon="list">
+    View all past transactions and withdrawals
+  </Card>
+  
+  <Card title="Bank Account" icon="building-columns">
+    Link bank account for withdrawals
+  </Card>
+</CardGroup>
+
+## Payment Center
+
+The payment center (`/payment/centro-de-pagos`) provides a centralized hub for:
+
+- Viewing all pending payments
+- Processing outstanding payments
+- Accessing payment history
+- Managing payment methods
+
+## Error Handling
+
+The payment system includes comprehensive error handling:
+
+```typescript
+export interface PaymentResponse {
+  res: Response;
+  resp: {
+    error?: string;
+    remainingAttempts?: number;  // For rate limiting
+    unlocksAt?: string;          // When to retry
+    waitMinutes?: number;        // Time to wait
+    [key: string]: unknown;
+  };
+}
+```
+
+### Common Errors
+
+<ResponseField name="error" type="string">
+  Human-readable error message
+</ResponseField>
+
+<ResponseField name="remainingAttempts" type="number">
+  Number of payment confirmation attempts remaining before lockout
+</ResponseField>
+
+<ResponseField name="unlocksAt" type="string">
+  Timestamp when payment attempts are unlocked again
+</ResponseField>
+
+<ResponseField name="waitMinutes" type="number">
+  Minutes to wait before retrying payment
+</ResponseField>
+
+## Payment Calculation
+
+Here's how to calculate the total payment:
+
+```typescript
+function calculateTotal(
+  subtotal: number,
+  commissionRate: number = 0.1,
+  discount: number = 0
+): number {
+  const serviceFee = subtotal * commissionRate;
+  const total = subtotal + serviceFee - discount;
+  return Math.round(total * 100) / 100; // Round to 2 decimals
+}
+
+const subtotal = 150;
+const total = calculateTotal(subtotal);
+console.log(total); // 165 (150 + 15 service fee)
+```
+
+## Invoice System
+
+Servineo generates invoices for completed payments:
+
+- View invoices: `/payment/facturas`
+- Invoice details: `/payment/detalleFactura/[invoiceId]`
+- Payment history: `/payment/historial`
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Verify Before Confirm" icon="shield-check">
+    Always verify the payment amount and details before confirming
+  </Card>
+  
+  <Card title="Handle Timeouts" icon="clock">
+    Implement proper timeout handling for payment code expiration
+  </Card>
+  
+  <Card title="Secure Code Storage" icon="lock">
+    Never store payment verification codes in client-side storage
+  </Card>
+  
+  <Card title="Error Messages" icon="triangle-exclamation">
+    Display clear, actionable error messages to users
+  </Card>
+</CardGroup>
+
+<Info>
+  The platform charges a 10% service fee on all transactions by default. This is configurable via the `commissionRate` parameter.
+</Info>
+
+## Integration with Jobs
+
+Payments are tightly integrated with the job lifecycle:
+
+```typescript
+import { JobRequest } from '@/types/job-request';
+
+// Job status progression
+'pending' → 'accepted' → 'in_progress' → 'completed' → 'paid'
+//                                                         ↑
+//                                                Payment confirms here
+```
+
+Once a job is marked as `paid`, the transaction is complete and funds are released to the fixer's wallet.
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Job Marketplace" icon="store" href="/concepts/job-marketplace">
+    Understand job requests that lead to payments
+  </Card>
+  
+  <Card title="Appointments" icon="calendar" href="/concepts/appointments">
+    Schedule appointments before payment
+  </Card>
+  
+  <Card title="Users and Roles" icon="users" href="/concepts/users-and-roles">
+    Learn about fixer and requester payment methods
+  </Card>
+</CardGroup>

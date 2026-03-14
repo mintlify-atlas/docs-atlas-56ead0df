@@ -1,0 +1,558 @@
+---
+title: 'Authentication'
+description: 'Multi-provider authentication system with OAuth and email/password support'
+---
+
+## Overview
+
+Servineo implements a comprehensive authentication system supporting multiple sign-in methods including OAuth providers (Google, GitHub, Discord) and traditional email/password authentication. The system includes advanced security features like 2FA/MFA, passwordless login, and TOTP verification.
+
+## Authentication Methods
+
+### Email and Password
+
+Users can register and log in using traditional email/password credentials.
+
+**Registration Flow:**
+
+```typescript
+// Manual registration endpoint
+export async function enviarRegistroManual(
+  name: string,
+  email: string,
+  password: string,
+): Promise<RegistroResponse> {
+  try {
+    const res = await fetch(`${BASE_URL}/registro/manual`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password }),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.message || `Error ${res.status}`);
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.error('Error al registrar manualmente:', error);
+    throw error;
+  }
+}
+```
+
+**Location:** `~/workspace/source/src/app/redux/services/auth/registro.ts:120-142`
+
+**Login Implementation:**
+
+The login page (`~/workspace/source/src/app/[locale]/login/page.tsx`) uses React Hook Form with Zod validation:
+
+```typescript
+const loginSchema = useMemo(
+  () =>
+    z.object({
+      email: z.string().email(t('errors.invalidEmail')),
+      password: z.string().min(6, t('errors.passwordMinLength')),
+    }),
+  [t],
+);
+
+const manejarLogin = async (data: LoginFormData): Promise<void> => {
+  setLoading(true);
+  try {
+    const res: ApiResponse<LoginResponse> = await api.post('/login', data);
+    
+    if (res.success && res.data) {
+      const datos = res.data;
+      
+      // Check for 2FA requirements
+      const needs2FA = Boolean(
+        datos.requires2FA ||
+        datos.mfaRequired ||
+        (datos.mfaMethods && datos.mfaMethods.length > 0),
+      );
+      
+      if (needs2FA) {
+        // Handle 2FA flow
+        return;
+      }
+      
+      // Store token and user data
+      localStorage.setItem('servineo_token', datos.token);
+      localStorage.setItem('servineo_user', JSON.stringify(normalizedUser));
+      
+      dispatch(setUser(normalizedUser));
+    }
+  } catch (err: unknown) {
+    // Handle errors
+  }
+};
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/login/page.tsx:98-196`
+
+### Google OAuth
+
+Integration with Google Sign-In using `@react-oauth/google` package.
+
+**Setup:**
+
+```typescript
+import { GoogleOAuthProvider } from '@react-oauth/google';
+
+<GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}>
+  {/* Login components */}
+  <LoginGoogle onMensajeChange={handleMensajeChange} />
+</GoogleOAuthProvider>
+```
+
+**Backend Handler:**
+
+```typescript
+export async function enviarTokenGoogle(token: string): Promise<GoogleAuthResponse> {
+  try {
+    const res = await fetch(`${BASE_URL}/google/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+
+    if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`);
+    return await res.json();
+  } catch (error) {
+    console.error('Error al conectar con el backend:', error);
+    throw error;
+  }
+}
+```
+
+**Location:** `~/workspace/source/src/app/redux/services/auth/registro.ts:29-43`
+
+### GitHub OAuth
+
+Users can authenticate using their GitHub accounts. The system uses a popup window for OAuth flow.
+
+**Implementation:**
+
+```typescript
+useEffect(() => {
+  const handleMessage = (event: MessageEvent) => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!apiUrl) return;
+
+    const apiOrigin = new URL(apiUrl).origin;
+    if (event.origin !== apiOrigin) return;
+
+    const data = event.data || {};
+    const { type, token, user, message } = data;
+
+    if (type === 'GITHUB_AUTH_SUCCESS') {
+      if (token && user) {
+        localStorage.setItem('servineo_token', token);
+        localStorage.setItem('servineo_user', JSON.stringify(user));
+        
+        // Redirect to home
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1500);
+      }
+    }
+  };
+
+  window.addEventListener('message', handleMessage);
+  return () => window.removeEventListener('message', handleMessage);
+}, []);
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/login/page.tsx:207-261`
+
+### Discord OAuth
+
+Discord authentication is handled via URL redirect with authorization code flow.
+
+**Login Handler:**
+
+```typescript
+useEffect(() => {
+  if (typeof window === 'undefined') return;
+
+  const search = window.location.search;
+  const params = new URLSearchParams(search);
+  const provider = params.get('provider');
+  const code = params.get('code');
+  const error = params.get('error');
+
+  if (provider !== 'discord') return;
+
+  if (code) {
+    const loginDiscord = async () => {
+      try {
+        setLoading(true);
+        
+        const res: ApiResponse<LoginResponse> = await api.post('/login/discord', { code });
+        
+        if (res.success && res.data) {
+          localStorage.setItem('servineo_token', datos.token);
+          localStorage.setItem('servineo_user', JSON.stringify(datos.user));
+          
+          window.history.replaceState({}, '', '/login');
+          
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 1500);
+        }
+      } catch (err: unknown) {
+        console.error('[LOGIN] Error en loginDiscord:', err);
+      }
+    };
+    
+    loginDiscord();
+  }
+}, []);
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/login/page.tsx:264-347`
+
+## Multi-Factor Authentication (MFA)
+
+Servineo supports multiple MFA methods for enhanced security:
+
+### 2FA/MFA Detection
+
+The login system automatically detects when 2FA is required:
+
+```typescript
+const needs2FA = Boolean(
+  datos.requires2FA ||
+  datos.mfaRequired ||
+  (datos.mfaMethods && datos.mfaMethods.length > 0),
+);
+
+if (needs2FA) {
+  const emailFor2FA = datos.email || datos.user?.email || data.email;
+  setEmailTOTP(emailFor2FA ?? '');
+
+  const methods = datos.mfaMethods || [];
+
+  if (methods.includes('passwordless') || methods.includes('session')) {
+    setModalActivo('sesion');
+  } else if (
+    methods.includes('totp') ||
+    methods.includes('otp') ||
+    methods.includes('totp_sms')
+  ) {
+    setModalActivo('totp');
+  } else {
+    setModalActivo('opciones');
+  }
+}
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/login/page.tsx:116-148`
+
+### Available MFA Methods
+
+1. **Passwordless/Session-based**: Authenticate using email magic links
+2. **TOTP (Time-based One-Time Password)**: Authenticator app codes
+3. **SMS OTP**: One-time passwords sent via SMS
+4. **Recovery Codes**: Backup codes for account recovery
+
+### MFA Modals
+
+The system uses three modal components for MFA flows:
+
+```typescript
+{/* Modal Sesión */}
+{modalActivo === 'sesion' && (
+  <AuthenticatorSesion
+    showModal={true}
+    setShowModal={() => setModalActivo('none')}
+    emailTOTP={emailTOTP}
+    setEmailTOTP={setEmailTOTP}
+    abrirTOTP={() => setModalActivo('totp')}
+  />
+)}
+
+{/* Modal TOTP */}
+{modalActivo === 'totp' && (
+  <AuthenticatorTOTPModal
+    showModal={true}
+    setShowModal={() => setModalActivo('none')}
+    regresarSesionModal={() => setModalActivo('sesion')}
+    email={emailTOTP}
+    abrirModalCodigo={() => setModalActivo('codigo')}
+  />
+)}
+
+{/* Modal Código de recuperación */}
+{modalActivo === 'codigo' && (
+  <CodigoRecuperacionModal
+    showModal={true}
+    cerrarModal={() => setModalActivo('none')}
+    volverATOTP={() => setModalActivo('totp')}
+    email={emailTOTP}
+  />
+)}
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/login/page.tsx:481-511`
+
+## Password Recovery
+
+Users can recover their passwords through a forgot password flow:
+
+```typescript
+<p className='text-center text-sm text-muted-foreground'>
+  <button
+    type='button'
+    onClick={() => setModalActivo('opciones')}
+    className='text-primary/90 hover:text-primary font-medium hover:underline transition'
+  >
+    {t('links.forgotPassword')}
+  </button>
+</p>
+
+<OpcionesLoginModal
+  showModal={modalActivo === 'opciones'}
+  onClose={() => setModalActivo('none')}
+  onSelectForgotPassword={() => router.push('/login/forgotpass')}
+  onSelectPasswordless={() => setModalActivo('sesion')}
+/>
+```
+
+**Forgot Password Pages:**
+- `/login/forgotpass` - Request password reset
+- `/login/forgotpass/verify` - Verify reset code
+- `/login/forgotpass/resend` - Resend verification code
+
+**Location:** `~/workspace/source/src/app/[locale]/login/page.tsx:413-479`
+
+## User Types
+
+Servineo supports multiple user roles defined in the user interface:
+
+```typescript
+export interface IUser {
+  _id?: string;
+  id?: string;
+  name: string;
+  email: string;
+  url_photo?: string;
+  role: 'requester' | 'fixer' | 'admin';
+
+  authProviders?: Array<{
+    provider: string;
+    providerId: string;
+    password?: string;
+  }>;
+
+  telefono?: string;
+  ubicacion?: {
+    lat?: number;
+    lng?: number;
+    direccion?: string;
+    departamento?: string;
+    pais?: string;
+  };
+  // ... additional fields
+}
+```
+
+**Location:** `~/workspace/source/src/types/user.ts:1-57`
+
+## Session Management
+
+### Token Storage
+
+Authentication tokens are stored in localStorage:
+
+```typescript
+localStorage.setItem('servineo_token', datos.token);
+localStorage.setItem('servineo_user', JSON.stringify(normalizedUser));
+```
+
+### Session Verification
+
+```typescript
+export async function verificarSesionBackend(token: string) {
+  try {
+    const res = await fetch(`${BASE_URL}/google/verify`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) throw new Error('Token inválido o expirado');
+    return await res.json();
+  } catch (error) {
+    console.error('Error al verificar la sesión:', error);
+    throw error;
+  }
+}
+```
+
+**Location:** `~/workspace/source/src/app/redux/services/auth/registro.ts:45-58`
+
+## Registration Flow
+
+New users complete a multi-step registration process:
+
+1. **Initial signup** (email/password or OAuth)
+2. **Phone number verification**
+3. **Location setup**
+4. **Profile photo upload**
+5. **Terms and conditions acceptance**
+
+**Registration Pages:**
+- `/signUp` - Main signup page
+- `/signUp/registrar/telefono` - Phone verification
+- `/signUp/registrar/ubicacion` - Location setup
+- `/signUp/registrar/registrarFoto` - Photo upload
+- `/signUp/registrar/Terminosycondiciones` - Terms acceptance
+
+### Phone Number Registration
+
+```typescript
+export async function enviarTelefono(telefono: string): Promise<TelefonoResponse> {
+  const token = localStorage.getItem('servineo_token');
+  try {
+    const res = await fetch(`${BASE_URL}/registrar/telefono`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ telefono }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(`Error ${res.status}: ${data.error || res.statusText}`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error al enviar el teléfono al backend:', error);
+    throw error;
+  }
+}
+```
+
+**Location:** `~/workspace/source/src/app/redux/services/auth/registro.ts:87-111`
+
+### Location Registration
+
+```typescript
+export async function enviarUbicacion(
+  lat: number,
+  lng: number,
+  direccion: string | null,
+  departamento: string | null,
+  pais: string | null,
+): Promise<UbicacionResponse> {
+  const token = localStorage.getItem('servineo_token');
+  try {
+    const res = await fetch(`${BASE_URL}/registrar/ubicacion`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ lat, lng, direccion, departamento, pais }),
+    });
+
+    if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`);
+    return await res.json();
+  } catch (error) {
+    console.error('Error al enviar la ubicación al backend:', error);
+    throw error;
+  }
+}
+```
+
+**Location:** `~/workspace/source/src/app/redux/services/auth/registro.ts:60-84`
+
+## Security Features
+
+### reCAPTCHA Integration
+
+The signup form includes Google reCAPTCHA v2 for bot protection:
+
+```typescript
+import ReCaptchaForm from '@/Components/requester/botonRegistro/recaptcha';
+
+const [captchaValid, setCaptchaValid] = useState(false);
+
+<ReCaptchaForm onVerified={(success) => setCaptchaValid(success)} />
+
+<RegistroForm captchaValid={captchaValid} onNotify={handleNotify} />
+<RegistroGoogle onNotify={handleNotify} captchaValid={captchaValid} />
+<GithubButton onNotify={handleNotify} captchaValid={captchaValid} />
+<DiscordButton onNotify={handleNotify} captchaValid={captchaValid} />
+```
+
+**Location:** `~/workspace/source/src/app/[locale]/signUp/page.tsx:13-64`
+
+### Input Validation
+
+Zod schemas ensure data integrity:
+
+```typescript
+const loginSchema = z.object({
+  email: z.string().email(t('errors.invalidEmail')),
+  password: z.string().min(6, t('errors.passwordMinLength')),
+});
+```
+
+## Internationalization
+
+All authentication flows support multiple languages through `next-intl`:
+
+```typescript
+import { useTranslations } from 'next-intl';
+
+const t = useTranslations('Login');
+
+<h1>{t('title')}</h1>
+<p>{t('mode')}</p>
+```
+
+## Error Handling
+
+Comprehensive error handling with user-friendly notifications:
+
+```typescript
+import NotificationModal from '@/Components/Modal-notifications';
+
+const [notification, setNotification] = useState<NotificationState>({
+  isOpen: false,
+  type: 'info',
+  title: '',
+  message: '',
+});
+
+setNotification({
+  isOpen: true,
+  type: 'error',
+  title: t('errors.loginError'),
+  message: mensajeError,
+});
+```
+
+## Best Practices
+
+1. **Always validate tokens** before making authenticated requests
+2. **Use environment variables** for sensitive configuration (OAuth client IDs)
+3. **Implement proper error handling** with user-friendly messages
+4. **Support multiple authentication methods** for better UX
+5. **Enable 2FA/MFA** for enhanced security
+6. **Use secure token storage** and refresh mechanisms
+7. **Validate input** on both client and server side
+
+## Related Components
+
+- Login page: `~/workspace/source/src/app/[locale]/login/page.tsx`
+- Signup page: `~/workspace/source/src/app/[locale]/signUp/page.tsx`
+- Auth services: `~/workspace/source/src/app/redux/services/auth/`
+- User types: `~/workspace/source/src/types/user.ts`

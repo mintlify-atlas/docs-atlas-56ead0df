@@ -1,0 +1,112 @@
+---
+title: 'Overview for Fixers'
+description: 'Learn how to become a service provider on Servineo and start earning by offering your professional services'
+---
+
+## What is a Fixer?
+
+A **Fixer** is a verified service provider on the Servineo platform who offers professional services to clients (requesters). As a Fixer, you can:
+
+- Create and manage job offers
+- Build your professional profile and reputation
+- Accept jobs from clients
+- Manage your availability through an integrated calendar
+- Grow your business through ratings and reviews
+
+## Who Can Become a Fixer?
+
+Fixers on Servineo are skilled professionals in various service categories including:
+
+- **Plomería** (Plumbing)
+- **Electricidad** (Electrical)
+- **Carpintería** (Carpentry)
+- **Pintura** (Painting)
+- **Albañilería** (Masonry)
+- **Jardinería** (Gardening)
+- **Limpieza** (Cleaning)
+- And more...
+
+## Benefits of Being a Fixer
+
+<CardGroup cols={2}>
+  <Card title="Flexible Work" icon="calendar">
+    Control your own schedule and accept jobs that fit your availability
+  </Card>
+  <Card title="Build Reputation" icon="star">
+    Earn ratings and reviews to attract more clients
+  </Card>
+  <Card title="Multiple Income Streams" icon="briefcase">
+    Offer multiple services and create various job offers
+  </Card>
+  <Card title="Professional Profile" icon="user">
+    Showcase your skills, certifications, and portfolio
+  </Card>
+</CardGroup>
+
+## Key Features
+
+### Profile Management
+
+Your fixer profile includes:
+
+```typescript
+interface Fixer {
+  id: string;
+  name: string;
+  email?: string;
+  phone: string;
+  photo?: string;
+  city: string;
+  rating?: number;
+  completedJobs: number;
+  services: string[];
+  bio?: string;
+  joinDate: string;
+  paymentMethods: string[];
+  whatsapp?: string;
+}
+```
+
+### Job Offers
+
+Create detailed job offers with:
+
+- Title and description
+- Service category and tags
+- Pricing information
+- Photos (up to 5 images)
+- Location and contact details
+
+### Reputation System
+
+Build your reputation through:
+
+- Star ratings (0-5 scale)
+- Client reviews
+- Completed job count
+- Response time and quality
+
+## Getting Started
+
+Ready to become a Fixer? Follow our step-by-step guide:
+
+<Card title="Become a Fixer" icon="arrow-right" href="/fixers/becoming-a-fixer">
+  Learn the registration process and requirements
+</Card>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Becoming a Fixer" icon="user-plus" href="/fixers/becoming-a-fixer">
+    Complete the registration wizard
+  </Card>
+  <Card title="Profile Setup" icon="settings" href="/fixers/profile-setup">
+    Configure your professional profile
+  </Card>
+  <Card title="Dashboard" icon="layout-dashboard" href="/fixers/dashboard">
+    Explore your fixer dashboard
+  </Card>
+  <Card title="Accepting Jobs" icon="check-circle" href="/fixers/accepting-jobs">
+    Learn how to manage job requests
+  </Card>
+</CardGroup>
